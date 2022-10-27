@@ -1,0 +1,5 @@
+mne==1.2.1
+python-dotenv==0.21.0
+refurb==1.4.0
+pre-commit==2.20.0
+numpy==1.23.4
