@@ -86,7 +86,7 @@ def main():
             slices = load_data(path)
             total_slices[path.name] = slices
 
-    with open(output_path.joinpath("slices.json"), "w") as f:
+    with open(output_path.joinpath(config.SLICES_FILENAME), "w") as f:
         json.dump(total_slices, f)
 
 
