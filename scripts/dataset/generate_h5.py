@@ -4,6 +4,7 @@ import json
 import pathlib
 import mne
 import numpy as np
+from tqdm import tqdm
 
 
 def other_files(output_path, filter_out):
@@ -16,7 +17,7 @@ def load_slices_metadata(output_path) -> dict[str, dict[str, list[list]]]:
 
 
 def read_raw_edf(edf_path: pathlib.Path) -> mne.io.Raw:
-    raw_edf = mne.io.read_raw_edf(edf_path, stim_channel=None, include=config.USEFUL_CHANNELS, verbose="ERROR")  # type: ignore
+    raw_edf = mne.io.read_raw_edf(edf_path, stim_channel=None, include=config.USEFUL_CHANNELS)  # type: ignore
 
     if "T8-P8-1" in raw_edf.ch_names:
         raw_edf.drop_channels("T8-P8-1")
@@ -29,7 +30,7 @@ def read_raw_edf(edf_path: pathlib.Path) -> mne.io.Raw:
 
 def extract_data(raw: mne.io.Raw) -> np.ndarray:
     raw = raw.load_data()
-    data = raw.filter(8, 13).get_data().as_type(np.float32) * 1e6  # type: ignore
+    data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
     return data
 
 
@@ -38,12 +39,19 @@ def split_ictals(raw_edf: mne.io.Raw, segments: list) -> tuple[list[mne.io.Raw],
     preictals = []
     for start, end, contains_seizure in segments:
         if contains_seizure:
-            preictal_start = min(start, end - config.PREICTAL_SECONDS)
-            preictals.append(raw_edf.crop(preictal_start, end))
+            preictal_start = max(start, end - config.PREICTAL_SECONDS)
+            # end - preictal_start must be divisible by effective window size
+            preictal_duration = end - preictal_start
+            effective_window_size = config.WINDOW_SIZE_SECONDS-config.WINDOW_OVERLAP_SECONDS
+            skip = (preictal_duration - config.WINDOW_OVERLAP_SECONDS) % effective_window_size
+            if skip != 0:
+                pass
+
+            preictals.append(raw_edf.copy().crop(preictal_start + skip, end, include_tmax=False))
             if preictal_start > start:
-                interictals.append(raw_edf.crop(start, preictal_start))
+                interictals.append(raw_edf.copy().crop(start, preictal_start, include_tmax=False))
         else:
-            interictals.append(raw_edf.crop(start, end))
+            interictals.append(raw_edf.copy().crop(start, end, include_tmax=False))
     return interictals, preictals
 
 
@@ -73,6 +81,7 @@ def extract_data_and_labels(edf_path: pathlib.Path, segments: list) -> tuple[lis
 
 
 def main():
+    mne.set_log_level("ERROR")
     dataset_path = config.DATASET_PATH
     output_path = config.OUTPUT_PATH.joinpath(str(config.PREICTAL_SECONDS))
     output_path.mkdir(exist_ok=True, parents=True)
@@ -81,16 +90,20 @@ def main():
         return
 
     slices_metadata = load_slices_metadata(output_path)
-    for patient, patient_slices in slices_metadata.items():
-        for edf_filename, segments in patient_slices.items():
+    for patient, patient_slices in tqdm(slices_metadata.items(), desc="Patients"):
+        interictal_data, preictal_data = [], []
+        for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
             if edf_filename in config.DISCARDED_EDFS:
                 continue
             edf_path = dataset_path.joinpath(patient, edf_filename)
-            X, y = load_data(edf_path, segments)
-            return
-            with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
-                f.create_dataset(f"{patient}/X", data=X)
-                f.create_dataset(f"{patient}/y", data=y)
+            i, p = extract_data_and_labels(edf_path, segments)
+            interictal_data.extend(i)
+            preictal_data.extend(p)
+        with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
+            f.create_dataset(f"{patient}/normal", data=np.concatenate(interictal_data))
+            for i, preictal in enumerate(preictal_data):
+                f.create_dataset(f"{patient}/anomaly/{i}", data=preictal)
+        del interictal_data, preictal_data
 
 
 if __name__ == '__main__':
