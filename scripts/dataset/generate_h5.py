@@ -5,6 +5,7 @@ import pathlib
 import mne
 import numpy as np
 from tqdm import tqdm
+from utils import ResizableH5Dataset
 
 
 def other_files(output_path, filter_out):
@@ -91,19 +92,19 @@ def main():
 
     slices_metadata = load_slices_metadata(output_path)
     for patient, patient_slices in tqdm(slices_metadata.items(), desc="Patients"):
-        interictal_data, preictal_data = [], []
-        for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
-            if edf_filename in config.DISCARDED_EDFS:
-                continue
-            edf_path = dataset_path.joinpath(patient, edf_filename)
-            i, p = extract_data_and_labels(edf_path, segments)
-            interictal_data.extend(i)
-            preictal_data.extend(p)
         with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
-            f.create_dataset(f"{patient}/normal", data=np.concatenate(interictal_data))
-            for i, preictal in enumerate(preictal_data):
-                f.create_dataset(f"{patient}/anomaly/{i}", data=preictal)
-        del interictal_data, preictal_data
+            anomalies = 0
+            normal_dataset = ResizableH5Dataset(f"{patient}/normal")
+            for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
+                if edf_filename in config.DISCARDED_EDFS:
+                    continue
+                edf_path = dataset_path.joinpath(patient, edf_filename)
+                interictal_windows, preictal_windows = extract_data_and_labels(edf_path, segments)
+                if interictal_windows:
+                    normal_dataset.append_data(f, data=np.concatenate(interictal_windows))
+                for p in preictal_windows:
+                    f.create_dataset(f"{patient}/anomaly/{anomalies}", data=p)
+                    anomalies += 1
 
 
 if __name__ == '__main__':
