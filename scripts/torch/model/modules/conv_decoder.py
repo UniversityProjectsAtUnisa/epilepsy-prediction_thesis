@@ -9,7 +9,7 @@ class ConvDecoder(nn.Module):
         self.n_filters = n_filters
         self.kernel_size = kernel_size
 
-        self.conv = nn.ConvTranspose2d(self.n_filters, 1, (self.kernel_size, self.n_channels), padding=((self.kernel_size-1//2), 0))
+        self.conv = nn.ConvTranspose2d(self.n_filters, 1, (self.n_channels, self.kernel_size), padding=(0, (self.kernel_size-1)//2))
 
     def forward(self, x):
         x = self.conv(x)

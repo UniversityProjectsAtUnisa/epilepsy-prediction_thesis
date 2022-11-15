@@ -1,17 +1,12 @@
-import os
 import numpy as np
 import pandas as pd
-#from imblearn.under_sampling import RandomUnderSampler
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.metrics import classification_report, confusion_matrix
-from skimage.filters import threshold_otsu
 from typing import Any
 
 
-def es_consecutivo(lista):
-    n = len(lista)
-    suma = n * min(lista) + n * (n - 1) / 2 if n > 0 else 0
-    return sum(lista) == suma
+def is_consecutive(l):
+    n = len(l)
+    ans = n * min(l) + n * (n - 1) / 2 if n > 0 else 0
+    return sum(l) == ans
 
 
 def load_data(directory, x_name, y_name, conf_channel=3, pandas=False, seql=0):

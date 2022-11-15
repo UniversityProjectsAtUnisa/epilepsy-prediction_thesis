@@ -1,8 +1,9 @@
 
 from src.lstm_autoencoder_classes import *
-from src.lstm_autoencoder_datafunction import *
-from src.lstm_autoencoder_plotfunction import *
-
+from scripts.model.helpers.src.lstm_autoencoder_plotfunction import *
+from scripts.torch.data_functions import load_data
+import torch_config as config
+from model.autoencoder import Autoencoder
 
 # directory='/home/tfgadmin/enri/input_features/'
 directory = 'C:/Users/enria/Desktop/input_features/input_features/'
@@ -20,9 +21,6 @@ PLOT_RESULT = True
 
 # KFOLD_MODE=True
 KFOLD_MODE = False  # train_test_split
-
-MODEL_ACTION = 'LOAD'
-# MODEL_ACTION='TRAIN'
 
 LIST_CONF_CHANNELS = [3]  # 1=resta canal 6 y 10   2=concatenacion    3=media aritmetica
 LIST_N_EPOCHS = [150]
@@ -43,11 +41,10 @@ for CONF_CHANNELS in LIST_CONF_CHANNELS:
                 for SEQL in LIST_SEQL:
 
                     # cargamos datos normales
-                    data_x_normal, data_y_normal = load_data(directory, x_name_normal, y_name_normal, conf_channel=CONF_CHANNELS, pandas=False, seql=SEQL)
-
-                    # subsampling
-                    data_x_normal = data_x_normal[:10000]
-                    data_y_normal = data_y_normal[:10000]
+                    X_train = load_data(config.H5_PATH, "chb15")
+                    sample_length = X_train.shape[2]
+                    n_channels = X_train.shape[1]
+                    model = Autoencoder(sample_length, config.N_FILTERS, n_channels, config.KERNEL_SIZE, config.N_SUBWINDOWS)
 
                     if MODEL_ACTION == 'LOAD':  # cargamos datos anómalos para testear
                         data_x_seizure, data_y_seizure = load_data(directory, x_name_seizure, y_name_seizure,

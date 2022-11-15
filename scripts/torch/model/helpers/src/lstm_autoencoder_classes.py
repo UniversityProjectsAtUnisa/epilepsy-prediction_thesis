@@ -1,4 +1,4 @@
-from src.lstm_autoencoder_plotfunction import *
+from scripts.model.helpers.src.lstm_autoencoder_plotfunction import *
 import copy
 import time
 import pickle

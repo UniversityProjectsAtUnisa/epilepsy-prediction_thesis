@@ -1,12 +1,8 @@
 from torch import nn
 
-N_SUBWINDOWS = 12
-LEN_SUBWINDOWS = 128
-ENCODING_DIM = LEN_SUBWINDOWS//2
-
 
 class LSTMDecoder(nn.Module):
-    def __init__(self, seq_len=N_SUBWINDOWS, encoding_dim=ENCODING_DIM, n_features=LEN_SUBWINDOWS):
+    def __init__(self, seq_len, encoding_dim, n_features):
         super(LSTMDecoder, self).__init__()
 
         self.seq_len = seq_len
@@ -31,10 +27,10 @@ class LSTMDecoder(nn.Module):
         self.output_layer = nn.Linear(self.hidden_dim, n_features)
 
     def forward(self, x):
-        x = x.repeat(self.seq_len, 1)
-        x = x.reshape((1, self.seq_len, self.encoding_dim))
+        x = x.repeat(1, self.seq_len, 1)
+        # x = x.reshape((1, self.seq_len, self.encoding_dim))
 
         x, (_, _) = self.rnn1(x)
         x, (_, _) = self.rnn2(x)
-        x = x.reshape((self.seq_len, self.hidden_dim))
+        # x = x.reshape((-1, self.seq_len, self.hidden_dim))
         return self.output_layer(x)

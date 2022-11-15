@@ -84,7 +84,7 @@ def extract_data_and_labels(edf_path: pathlib.Path, segments: list) -> tuple[lis
 def main():
     mne.set_log_level("ERROR")
     dataset_path = config.DATASET_PATH
-    output_path = config.OUTPUT_PATH.joinpath(str(config.PREICTAL_SECONDS))
+    output_path = config.H5_PATH
     output_path.mkdir(exist_ok=True, parents=True)
     if other_files(output_path, config.SLICES_FILENAME):
         print(f"Output path contains files other than {config.SLICES_FILENAME}")
