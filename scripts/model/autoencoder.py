@@ -8,6 +8,7 @@ import pickle
 from modules.conv_encoder import ConvEncoder
 from modules.conv_decoder import ConvDecoder
 from modules.lstm_autoencoder import LSTMAutoencoder
+from modules.standardizer import Standardizer
 
 N_FILTERS = 3
 N_CHANNELS = 18
@@ -33,9 +34,12 @@ class Autoencoder(nn.Module):
         encoding_dim = sample_length//2
         n_subwindows = sample_length//len_subwindows
 
-        self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        self.lstm_autoencoders = [LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim) for _ in range(n_filters)]
+        self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size).to(self.device)
+        self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size).to(self.device)
+        self.lstm_autoencoders = [LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows,
+                                                  encoding_dim=encoding_dim).to(self.device) for _ in range(n_filters)]
+
+        self.standardizers = [Standardizer() for _ in range(n_channels)]
 
     def forward(self, x):
         x = self.conv_encoder(x)
@@ -47,9 +51,9 @@ class Autoencoder(nn.Module):
         x = self.conv_decoder(x)
         return x
 
-    def train_model(self, model, train_dataset, val_dataset, train_index=None, test_index=None, N_EPOCHS=0, LEARNING_RATE=1e-3, MODEL_NAME='model', plot_result=True):
+    def train_model(self, model, train_dataset, val_dataset, train_index=None, test_index=None, n_epochs=0, learning_rate=1e-3, model_name='model', plot_result=True):
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         #criterion = nn.L1Loss(reduction='sum').to(self.device)
         criterion = nn.MSELoss().to(self.device)
         history: Dict[str, Any] = dict(train=[], val=[], train_index=train_index, test_index=test_index)
@@ -57,7 +61,7 @@ class Autoencoder(nn.Module):
         best_model_wts = copy.deepcopy(model.state_dict())
         best_loss = 100000000000000.0
 
-        for epoch in range(1, N_EPOCHS + 1):
+        for epoch in range(1, n_epochs + 1):
 
             train_losses, val_losses = [], []
 
@@ -93,11 +97,11 @@ class Autoencoder(nn.Module):
             if val_loss < best_loss:
                 best_loss = val_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
-                torch.save(best_model_wts, str(MODEL_NAME+'.pth'))
-                with open(str(MODEL_NAME+'.pickle'), 'wb') as handle:
+                torch.save(best_model_wts, str(model_name+'.pth'))
+                with open(str(model_name+'.pickle'), 'wb') as handle:
                     pickle.dump(history, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 if plot_result:
-                    plot_loss_throw_epochs(history, MODEL_NAME)
+                    plot_loss_throw_epochs(history, model_name)
 
             end_time = time.strftime("%H:%M:%S", time.localtime())
             print(f'Time: {end_time} -- train_loss: {round(train_loss, 6)}, val_loss: {round(val_loss, 6)}')
