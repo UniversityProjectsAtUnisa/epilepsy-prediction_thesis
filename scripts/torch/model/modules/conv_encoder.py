@@ -14,7 +14,8 @@ class ConvEncoder(nn.Module):
         self.bn = nn.BatchNorm2d(self.n_filters)
 
     def forward(self, x):
-        x = x.reshape((-1, 1, self.n_channels, self.sample_length))
+        # x = x.reshape((-1, 1, self.n_channels, self.sample_length))
+        x = x.reshape((x.shape[0], 1, x.shape[1], x.shape[2]))
         x = self.conv(x)
         x = self.bn(x)
         x = F.relu(x)

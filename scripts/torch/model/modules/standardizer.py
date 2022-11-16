@@ -1,22 +1,14 @@
 import torch
-from torch import nn
+import pathlib
 
 
-class Standardizer(nn.Module):
+class Standardizer():
+    mean_filename = "mean.pth"
+    std_filename = "std.pth"
+
     def __init__(self):
-        super(Standardizer, self).__init__()
-        self.s = FunctionalStandardizer()
-
-    def forward(self, x):
-        return self.s.transform(x)
-
-    def reset(self):
-        self.s.reset()
-
-
-class FunctionalStandardizer():
-    def __init__(self):
-        self.reset()
+        self.mean = None
+        self.std = None
 
     def fit(self, x: torch.Tensor, axis=1):
         dim = list(range(len(x.shape)))
@@ -36,6 +28,14 @@ class FunctionalStandardizer():
         self.fit(x)
         return self.transform(x)
 
-    def reset(self):
-        self.mean = None
-        self.std = None
+    @classmethod
+    def load(cls, dirpath: pathlib.Path):
+        s = cls()
+        s.mean = torch.load(dirpath.joinpath(cls.mean_filename))
+        s.std = torch.load(dirpath.joinpath(cls.std_filename))
+        return s
+
+    def save(self, dirpath: pathlib.Path):
+        dirpath.mkdir(parents=True, exist_ok=True)
+        torch.save(self.mean, dirpath.joinpath(self.mean_filename))
+        torch.save(self.std, dirpath.joinpath(self.std_filename))

@@ -23,6 +23,6 @@ class LSTMEncoder(nn.Module):
         )
 
     def forward(self, x):
-        x, (_, _) = self.rnn1(x)
+        x, _ = self.rnn1(x)
         _, (hidden_n, _) = self.rnn2(x)
-        return hidden_n.reshape((-1, 1, self.encoding_dim))
+        return hidden_n.reshape((-1, 1, hidden_n.shape[2]))

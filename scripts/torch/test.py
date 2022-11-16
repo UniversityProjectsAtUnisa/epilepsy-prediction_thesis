@@ -1,6 +1,15 @@
 from data_functions import load_data, split_data, convert_to_tensor
 import torch_config as config
 from model.anomaly_detector import AnomalyDetector
+import torch
+
+
+def print_accuracy(normal_preds: torch.Tensor, anomaly_preds: list[torch.Tensor]):
+    print(f'Correct normal predictions: {sum(normal_preds)}/{len(normal_preds)} -- {sum(normal_preds)/len(normal_preds)*100}')
+
+    correct_anomaly = sum([sum(pred) for pred in anomaly_preds])
+    total_anomaly = sum([len(pred) for pred in anomaly_preds])
+    print(f'Correct seizure predictions: {correct_anomaly}/{total_anomaly} -- {correct_anomaly/total_anomaly*100}\n')
 
 
 def main():
@@ -8,16 +17,16 @@ def main():
     dirpath.mkdir(exist_ok=True, parents=True)
     # Load data
     X_normal, X_anomalies = load_data(config.H5_PATH, "chb15")
-    X_train, X_val, *_ = split_data(X_normal, X_anomalies)
+    _, _, X_test, X_anomalies = split_data(X_normal, X_anomalies)
 
     # Convert to tensor
-    X_train, X_val = convert_to_tensor(X_train, X_val)
-    # X_anomalies = list(convert_to_tensor(*X_anomalies))
+    X_test, = convert_to_tensor(X_test)
+    X_anomalies = list(convert_to_tensor(*X_anomalies))
 
-    model = AnomalyDetector()
-    model.train(X_train, X_val, n_epochs=5, batch_size=config.BATCH_SIZE, dirpath=dirpath)
-
-    model.save(dirpath)
+    model = AnomalyDetector.load(dirpath)
+    normal_preds = model.predict(X_test)
+    anomaly_preds = [model.predict(x) for x in X_anomalies]
+    print_accuracy(normal_preds, anomaly_preds)
 
 
 # def main():
