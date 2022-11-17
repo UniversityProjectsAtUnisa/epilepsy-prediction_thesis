@@ -29,23 +29,20 @@ class Autoencoder(nn.Module):
 
         self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
         self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        # self.lstm_autoencoders = [LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim) for _ in range(n_filters)]
-        self.lstm_autoencoder = LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim)
+        for i in range(n_filters):
+            setattr(self, f"lstm_autoencoder_{i}", LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim))
 
     def forward(self, x):
         x = self.conv_encoder(x)
-        y = x.reshape(x.shape[0], self.n_subwindows, -1)
-        y = self.lstm_autoencoder(y)
-        x = y.reshape(*x.shape)
 
-        # filter_maps = []
-        # for i in range(x.shape[1]):
-        #     y = x[:, i, :, :]
-        #     y = y.reshape(y.shape[0], self.n_subwindows, -1)
-        #     y = self.lstm_autoencoders[i](y)
-        #     y = y.reshape(y.shape[0], 1, -1)
-        #     filter_maps.append(y)
-        # x = torch.stack(filter_maps, dim=1)
+        filter_maps = []
+        for i in range(x.shape[1]):
+            y = x[:, i, :, :]
+            y = y.reshape(y.shape[0], self.n_subwindows, -1)
+            y = getattr(self, f"lstm_autoencoder_{i}")(y)
+            y = y.reshape(y.shape[0], 1, -1)
+            filter_maps.append(y)
+        x = torch.stack(filter_maps, dim=1)
         x = self.conv_decoder(x)
         x = x.reshape(-1, x.shape[2], x.shape[3])
         return x
