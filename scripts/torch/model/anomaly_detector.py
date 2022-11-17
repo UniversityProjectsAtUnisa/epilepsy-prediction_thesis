@@ -46,7 +46,7 @@ class AnomalyDetector:
         losses_train = self.model.calculate_losses(X_train)
 
         # calculate threshold
-        th: float = threshold_otsu(np.array(losses_train))
+        th: float = threshold_otsu(np.array(losses_train.cpu()))
         self.threshold = Threshold(th)
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
