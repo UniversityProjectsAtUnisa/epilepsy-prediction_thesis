@@ -30,11 +30,11 @@ def is_consecutive(l):
 def split_data(X_normal: np.ndarray, X_anomalies: List[np.ndarray],
                train_size=0.8, random_state=1) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[np.ndarray]]:
     print("Splitting data... ", end=" ")
-    X_train, rest = train_test_split(X_normal, train_size=train_size, random_state=1)  # type: ignore
+    X_train, rest = train_test_split(X_normal, train_size=train_size, random_state=random_state)  # type: ignore
     n_anomalies = sum([x.shape[0] for x in X_anomalies])
     if n_anomalies > len(rest):
         raise ValueError("Not enough data for anomalies")
-    X_val, X_test = train_test_split(rest, test_size=n_anomalies, random_state=1)
+    X_val, X_test = train_test_split(rest, test_size=n_anomalies, random_state=random_state)
     return X_train, X_val, X_test, X_anomalies  # type: ignore
 
 

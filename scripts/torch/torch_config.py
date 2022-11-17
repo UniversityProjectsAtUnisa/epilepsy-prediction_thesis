@@ -12,7 +12,8 @@ H5_FILENAME = get_envvar("H5_FILENAME")
 H5_PATH = OUTPUT_PATH.joinpath(str(PREICTAL_SECONDS), H5_FILENAME)
 SAVED_MODEL_PATH = OUTPUT_PATH.joinpath(str(PREICTAL_SECONDS), "saves")
 
-# CONSTANTS
+
+RANDOM_STATE = int(get_envvar('RANDOM_STATE'))
 N_FILTERS = int(get_envvar('N_FILTERS'))
 KERNEL_SIZE = int(get_envvar('KERNEL_SIZE'))
 N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS'))

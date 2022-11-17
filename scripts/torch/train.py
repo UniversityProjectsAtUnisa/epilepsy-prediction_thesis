@@ -8,7 +8,7 @@ def main():
     dirpath.mkdir(exist_ok=True, parents=True)
     # Load data
     X_normal, X_anomalies = load_data(config.H5_PATH, "chb15")
-    X_train, X_val, *_ = split_data(X_normal, X_anomalies)
+    X_train, X_val, *_ = split_data(X_normal, X_anomalies, random_state=config.RANDOM_STATE)
 
     # Convert to tensor
     X_train, X_val = convert_to_tensor(X_train, X_val)
