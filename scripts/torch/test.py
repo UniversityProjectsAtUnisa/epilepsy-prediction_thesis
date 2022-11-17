@@ -2,9 +2,10 @@ from data_functions import load_data, split_data, convert_to_tensor
 import torch_config as config
 from model.anomaly_detector import AnomalyDetector
 import torch
+from typing import List
 
 
-def print_accuracy(normal_preds: torch.Tensor, anomaly_preds: list[torch.Tensor]):
+def print_accuracy(normal_preds: torch.Tensor, anomaly_preds: List[torch.Tensor]):
     print(f'Correct normal predictions: {sum(normal_preds)}/{len(normal_preds)} -- {sum(normal_preds)/len(normal_preds)*100}')
 
     correct_anomaly = sum([sum(pred) for pred in anomaly_preds])

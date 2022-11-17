@@ -7,6 +7,7 @@ from skimage.filters import threshold_otsu
 import pathlib
 import torch
 from utils import check_device
+from typing import Optional
 
 
 class AnomalyDetector:
@@ -25,7 +26,7 @@ class AnomalyDetector:
         threshold = Threshold.load(threshold_path)
         return cls(model, standardizer, threshold)
 
-    def __init__(self, model: Autoencoder | None = None, standardizer: Standardizer | None = None, threshold: Threshold | None = None):
+    def __init__(self, model: Optional[Autoencoder] = None, standardizer: Optional[Standardizer] = None, threshold: Optional[Threshold] = None):
         self.model = model
         self.standardizer = standardizer
         self.threshold = threshold
