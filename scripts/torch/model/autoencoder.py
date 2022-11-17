@@ -82,9 +82,7 @@ class Autoencoder(nn.Module):
             # self = self.train()
             self.train()
 
-            # for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=config.DEVICE)):
-            for seq_true in X_train:
-                seq_true = seq_true.reshape(1, *seq_true.shape)
+            for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=config.DEVICE)):
                 optimizer.zero_grad()
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)

@@ -15,7 +15,7 @@ def main():
     # X_anomalies = list(convert_to_tensor(*X_anomalies))
 
     model = AnomalyDetector()
-    model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE, dirpath=dirpath)
+    model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE, dirpath=dirpath, learning_rate=config.LEARNING_RATE)
 
     model.save(dirpath)
 
