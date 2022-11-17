@@ -1,4 +1,4 @@
-from utils import get_envvar
+from utils import check_device, get_envvar
 import pathlib
 from dotenv import load_dotenv
 import torch
@@ -20,4 +20,5 @@ N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS'))
 BATCH_SIZE = int(get_envvar('BATCH_SIZE'))
 PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
 
+DEVICE = check_device()
 torch.set_default_tensor_type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)  # type: ignore
