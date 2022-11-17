@@ -17,7 +17,6 @@ def print_accuracy(normal_preds: torch.Tensor, anomaly_preds: List[torch.Tensor]
 
 def main():
     dirpath = config.SAVED_MODEL_PATH
-    dirpath.mkdir(exist_ok=True, parents=True)
     # Load data
     X_normal, X_anomalies = load_data(config.H5_PATH, "chb15")
     X_train, X_val, X_test, X_anomalies = split_data(X_normal, X_anomalies, random_state=config.RANDOM_STATE)
