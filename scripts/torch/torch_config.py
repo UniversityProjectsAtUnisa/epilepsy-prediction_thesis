@@ -20,6 +20,7 @@ N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS'))
 N_EPOCHS = int(get_envvar('N_EPOCHS'))
 BATCH_SIZE = int(get_envvar('BATCH_SIZE'))
 PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
+MAX_ANOMALY_SLICES = int(get_envvar('MAX_ANOMALY_SLICES'))
 
 DEVICE = check_device()
 torch.set_default_tensor_type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)  # type: ignore

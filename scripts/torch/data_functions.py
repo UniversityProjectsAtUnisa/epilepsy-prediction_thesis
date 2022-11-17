@@ -12,6 +12,7 @@ import h5py
 from sklearn.model_selection import train_test_split
 import torch_config as config
 from typing import List, Tuple
+from itertools import islice
 
 
 def is_consecutive(l):
@@ -52,12 +53,11 @@ def load_data(dataset_path, patient_name):
             X_normal: np.ndarray = f[f"{patient_name}/normal"][:config.PARTIAL_TRAINING]  # type: ignore
         # X: np.ndarray = f[f"{patient_name}/normal"][:]  # type: ignore
         X_anomalies: List[np.ndarray] = []
-        i = 0
-        for dataset in f[f"{patient_name}/anomaly"].values():  # type: ignore
-            X_anomalies.append(dataset[:])
-            i += 1
-            if i == 1:
-                break
+        anomaly_datasets_generator = (x[:] for x in f[f"{patient_name}/anomaly"].values())  # type: ignore
+        if config.MAX_ANOMALY_SLICES == 0:
+            X_anomalies = list(anomaly_datasets_generator)
+        else:
+            X_anomalies = list(islice(anomaly_datasets_generator, config.MAX_ANOMALY_SLICES))
 
     print(f'DONE')
     print(f"Normal shape: {X_normal.shape}")
