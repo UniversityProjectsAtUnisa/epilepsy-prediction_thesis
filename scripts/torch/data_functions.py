@@ -38,7 +38,7 @@ def split_data(X_normal: np.ndarray, X_anomalies: List[np.ndarray],
 
 
 def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
-    return tuple([torch.tensor(x, device=config.DEVICE).float() for x in Xs])
+    return tuple([torch.tensor(x).float() for x in Xs])
 
 
 def load_data(dataset_path, patient_name):

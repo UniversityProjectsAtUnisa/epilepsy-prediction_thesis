@@ -11,6 +11,7 @@ from .helpers.history import History
 from torch.utils.data import DataLoader
 import math
 import pathlib
+import torch_config as config
 
 
 class Autoencoder(nn.Module):
@@ -81,7 +82,7 @@ class Autoencoder(nn.Module):
             # self = self.train()
             self.train()
 
-            for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True):
+            for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=config.DEVICE)):
                 optimizer.zero_grad()
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
