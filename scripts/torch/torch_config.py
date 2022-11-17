@@ -1,6 +1,7 @@
 from utils import get_envvar
 import pathlib
 from dotenv import load_dotenv
+import torch
 
 load_dotenv()
 
@@ -18,3 +19,5 @@ N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS'))
 
 BATCH_SIZE = int(get_envvar('BATCH_SIZE'))
 PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
+
+torch.set_default_tensor_type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)  # type: ignore
