@@ -22,29 +22,29 @@ class Autoencoder(nn.Module):
     def __init__(self, sample_length, n_filters, n_channels, kernel_size, n_subwindows):
         super(Autoencoder, self).__init__()
         self.n_subwindows = n_subwindows
-        n_channels = n_channels
 
         len_subwindows = sample_length//n_subwindows
         encoding_dim = len_subwindows//2
 
-        self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
+        # self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
+        # self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
         for i in range(n_filters):
             setattr(self, f"lstm_autoencoder_{i}", LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim))
 
     def forward(self, x):
-        x = self.conv_encoder(x)
+        # x = self.conv_encoder(x)
 
-        filter_maps = []
-        for i in range(x.shape[1]):
-            y = x[:, i, :, :]
-            y = y.reshape(y.shape[0], self.n_subwindows, -1)
-            y = getattr(self, f"lstm_autoencoder_{i}")(y)
-            y = y.reshape(y.shape[0], 1, -1)
-            filter_maps.append(y)
-        x = torch.stack(filter_maps, dim=1)
-        x = self.conv_decoder(x)
-        x = x.reshape(-1, x.shape[2], x.shape[3])
+        # filter_maps = []
+        # for i in range(x.shape[1]):
+        # y = x[:, i, :, :]
+        y = x.reshape(x.shape[0], self.n_subwindows, -1)
+        y = getattr(self, f"lstm_autoencoder_{0}")(y)
+        y = y.reshape(y.shape[0], -1)
+        x = y
+        # filter_maps.append(y)
+        # x = torch.stack(filter_maps, dim=1)
+        # x = self.conv_decoder(x)
+        # x = x.reshape(-1, x.shape[2], x.shape[3])
         return x
 
     def predict(self, X):
