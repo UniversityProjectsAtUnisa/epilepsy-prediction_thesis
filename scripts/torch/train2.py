@@ -26,6 +26,7 @@ def main():
         n_channels = X_train.shape[1]
         model = Autoencoder.load_from_checkpoint(model_path, sample_length, config.N_FILTERS, n_channels, config.KERNEL_SIZE, config.N_SUBWINDOWS)
         standardizer = Standardizer.load(standardizer_path)
+        X_train = standardizer.transform(X_train)
 
         losses_train = model.calculate_losses(X_train)
         threshold = Threshold()
