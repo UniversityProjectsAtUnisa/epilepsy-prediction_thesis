@@ -3,6 +3,7 @@ import torch_config as config
 from model.anomaly_detector import AnomalyDetector
 import torch
 from typing import List
+from utils.gpu_utils import device_context
 
 
 def print_accuracy(normal_preds: torch.Tensor, anomaly_preds: List[torch.Tensor]):
@@ -26,9 +27,11 @@ def main():
     X_test, = convert_to_tensor(X_test)
     X_anomalies = list(convert_to_tensor(*X_anomalies))
 
-    model = AnomalyDetector.load(dirpath)
-    normal_preds = model.predict(X_test)
-    anomaly_preds = [model.predict(x) for x in X_anomalies]
+    with device_context:
+        model = AnomalyDetector.load(dirpath)
+        normal_preds = model.predict(X_test)
+        anomaly_preds = [model.predict(x) for x in X_anomalies]
+
     print_accuracy(normal_preds, anomaly_preds)
 
 

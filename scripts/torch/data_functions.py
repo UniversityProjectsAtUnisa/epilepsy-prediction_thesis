@@ -35,6 +35,7 @@ def split_data(X_normal: np.ndarray, X_anomalies: List[np.ndarray],
     if n_anomalies > len(rest):
         raise ValueError("Not enough data for anomalies")
     X_val, X_test = train_test_split(rest, test_size=n_anomalies, random_state=random_state)
+    print("DONE")
     return X_train, X_val, X_test, X_anomalies  # type: ignore
 
 

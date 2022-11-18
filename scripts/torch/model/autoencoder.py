@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 import math
 import pathlib
 import torch_config as config
+from utils.gpu_utils import device_context
 
 
 class Autoencoder(nn.Module):
@@ -84,7 +85,7 @@ class Autoencoder(nn.Module):
             # self = self.train()
             self.train()
 
-            for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=config.DEVICE)):
+            for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, pin_memory=True, generator=torch.Generator(device=device_context.device)):
                 optimizer.zero_grad()
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
@@ -95,8 +96,10 @@ class Autoencoder(nn.Module):
             self.eval()
 
             with torch.no_grad():
-                seq_true = X_val
-                seq_true = seq_true
+                if device_context.using_gpu:
+                    seq_true = X_val.cuda()
+                else:
+                    seq_true = X_val
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
                 val_losses.append(loss.item())

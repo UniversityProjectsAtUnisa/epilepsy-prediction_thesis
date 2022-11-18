@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 import torch
 from typing import Optional
@@ -12,9 +13,3 @@ def get_envvar(name, default: Optional[str] = None):
     if default is not None:
         return default
     raise ValueError(f"Environment variable `{name}` not found")
-
-
-def check_device():
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu', index=0)
-    print(f'(Using device: {device})', end=" ")
-    return device
