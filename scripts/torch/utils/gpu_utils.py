@@ -10,6 +10,8 @@ class DeviceType(Enum):
 
 class GPUContext:
     cpu_name = "cpu"
+    using_gpu = False
+    device = torch.device(cpu_name)
 
     def __init__(self, gpu_name: str = "cuda"):
         self.gpu_name = gpu_name

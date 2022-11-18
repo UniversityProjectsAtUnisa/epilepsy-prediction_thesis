@@ -86,8 +86,7 @@ class Autoencoder(nn.Module):
             self.train()
 
             for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, pin_memory=True):
-                if device_context.using_gpu:
-                    seq_true = seq_true.cuda()
+                seq_true = seq_true.to(device_context.device)
                 optimizer.zero_grad()
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
@@ -98,10 +97,7 @@ class Autoencoder(nn.Module):
             self.eval()
 
             with torch.no_grad():
-                if device_context.using_gpu:
-                    seq_true = X_val.cuda()
-                else:
-                    seq_true = X_val
+                seq_true = X_val.to(device_context.device)
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
                 val_losses.append(loss.item())
