@@ -46,7 +46,7 @@ def load_data(dataset_path, patient_name):
 
     print("Loading data... ", end=" ")
 
-    with h5py.File(dataset_path) as f:    # TODO: Cambiare
+    with h5py.File(dataset_path) as f:
         if config.PARTIAL_TRAINING == 0:
             X_normal: np.ndarray = f[f"{patient_name}/normal"][:]  # type: ignore
         else:

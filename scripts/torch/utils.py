@@ -4,7 +4,7 @@ from typing import Optional
 
 
 def get_envvar(name, default: Optional[str] = None):
-    # TODO: Duplicato
+    # FIXME: Duplicato
     """a function to get an environment variable that throws an exception if not found"""
     value = os.getenv(name)
     if value is not None:

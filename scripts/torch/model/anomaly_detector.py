@@ -30,24 +30,24 @@ class AnomalyDetector:
         self.model = model
         self.standardizer = standardizer
         self.threshold = threshold
-        self.device = check_device()  # TODO: Use device
 
     def train(self, X_train, X_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
+        # Train and apply standardization
         self.standardizer = Standardizer()
         X_train = self.standardizer.fit_transform(X_train)
         X_val = self.standardizer.transform(X_val)
 
+        # Train model
         sample_length = X_train.shape[2]
         n_channels = X_train.shape[1]
         self.model = Autoencoder(sample_length, config.N_FILTERS, n_channels, config.KERNEL_SIZE, config.N_SUBWINDOWS)
         self.model.train_model(X_train, X_val, n_epochs=n_epochs, batch_size=batch_size, dirpath=dirpath.joinpath(
             self.model_dirname), learning_rate=learning_rate, plot_result=plot_result)
 
+        # Calculate threshold
         losses_train = self.model.calculate_losses(X_train)
-
-        # calculate threshold
-        th: float = threshold_otsu(np.array(losses_train.cpu()))
-        self.threshold = Threshold(th)
+        self.threshold = Threshold()
+        self.threshold.fit(losses_train)
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
         if self.model is None or self.standardizer is None or self.threshold is None:
@@ -55,7 +55,7 @@ class AnomalyDetector:
 
         X = self.standardizer.transform(X)
         losses = self.model.calculate_losses(X)
-        return self.threshold(torch.Tensor(losses))
+        return self.threshold.transform(losses)
 
     def save(self, dirpath: pathlib.Path):
         if self.model is None or self.standardizer is None or self.threshold is None:
