@@ -1,5 +1,5 @@
-from .modules.standardizer import Standardizer
-from .modules.threshold import Threshold
+from .standardizer import Standardizer
+from .threshold import Threshold
 from .autoencoder import Autoencoder
 import torch_config as config
 import pathlib

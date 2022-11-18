@@ -58,6 +58,7 @@ class Autoencoder(nn.Module):
 
     def predict_with_losses(self, X_true):
         # criterion = nn.L1Loss(reduction='sum').to(model.device)
+        X_true = X_true.to(device_context.device)
         criterion = nn.MSELoss(reduction="none")
         with torch.no_grad():
             self.eval()
@@ -126,6 +127,12 @@ class Autoencoder(nn.Module):
         model = torch.load(model_path)
         if not isinstance(model, cls):
             raise Exception("Invalid model file")
+        return model
+
+    @classmethod
+    def load_from_checkpoint(cls, dirpath: pathlib.Path, sample_length, n_filters, n_channels, kernel_size, n_subwindows):
+        model = cls(sample_length, n_filters, n_channels, kernel_size, n_subwindows)
+        model.load_checkpoint(dirpath)
         return model
 
     def save(self, dirpath: pathlib.Path):
