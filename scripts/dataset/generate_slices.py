@@ -16,7 +16,7 @@ def extract_data(edf_path: pathlib.Path) -> np.ndarray:
 
 def extract_slices(edf_path: pathlib.Path, summary: str):
     if edf_path.name not in summary:
-        return []
+        return None
     i_text_start = summary.index(edf_path.name)
 
     if 'File Name' in summary[i_text_start:]:
@@ -30,7 +30,7 @@ def extract_slices(edf_path: pathlib.Path, summary: str):
     m = re.search(r"Number of Seizures in File: ([0-9]*)", file_text)
     if m is None or m.group(1) == '0':
         useful_slices = [(0, extract_data(edf_path).shape[1] // config.SAMPLING_FREQUENCY, False)]
-        return useful_slices
+        return 0, useful_slices
     n_seizures = int(m.group(1))
 
     useful_slices = []
@@ -40,7 +40,8 @@ def extract_slices(edf_path: pathlib.Path, summary: str):
         start_sec = int(re.search(f"Seizure(?: {i+1})? Start Time:\s*([0-9]*) seconds", file_text).group(1))  # type: ignore
 
         if i == 0:
-            useful_slices.append((end_sec, start_sec, True))
+            if start_sec - end_sec > config.PREICTAL_SECONDS:
+                useful_slices.append((end_sec, start_sec, True))
         elif start_sec - end_sec > config.PREICTAL_SECONDS + config.POSTICTAL_SECONDS:
             useful_slices.append((end_sec + config.POSTICTAL_SECONDS, start_sec, True))
 
@@ -53,7 +54,9 @@ def extract_slices(edf_path: pathlib.Path, summary: str):
     if end_sec + config.POSTICTAL_SECONDS < end_sample:
         useful_slices.append((end_sec+config.POSTICTAL_SECONDS, end_sample, False))
 
-    return useful_slices
+    if not useful_slices:
+        return None
+    return n_seizures, useful_slices
 
 
 def load_data(subject_path: pathlib.Path):
@@ -68,8 +71,11 @@ def load_data(subject_path: pathlib.Path):
     slices = {}
     for edf_filename in edf_filenames:
         edf_path = pathlib.Path(edf_filename)
-        local_slices = extract_slices(edf_path, summary)
-        slices[edf_path.name] = local_slices
+        res = extract_slices(edf_path, summary)
+        if res is None:
+            continue
+        n_seizures, local_slices = res
+        slices[edf_path.name] = dict(n_seizures=n_seizures, slices=local_slices)
     return slices
 
 
