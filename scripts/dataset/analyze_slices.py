@@ -16,8 +16,6 @@ def main():
     data = {}
 
     for patient, patient_slices in slices_metadata.items():
-        if patient == "chb12":
-            print("stop")
         data[patient] = {}
         files_without_seizures = 0
         unique_files_with_seizures = 0
