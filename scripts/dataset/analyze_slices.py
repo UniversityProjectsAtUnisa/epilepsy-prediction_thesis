@@ -16,10 +16,12 @@ def main():
     data = {}
 
     for patient, patient_slices in slices_metadata.items():
+        if patient == "chb12":
+            print("stop")
         data[patient] = {}
         files_without_seizures = 0
-        files_with_1_seizure = 0
-        total_files = len(patient_slices.keys())
+        unique_files_with_seizures = 0
+        total_files = len(patient_slices)
         training_seconds = 0
         test_negative_seconds = 0
         test_positive_seconds = 0
@@ -37,7 +39,7 @@ def main():
                     assert not contains_seizure
                     training_seconds += end
             else:
-                for start, end, contains_seizure in slices:
+                for i, (start, end, contains_seizure) in enumerate(slices):
                     if not contains_seizure:
                         test_negative_seconds += end - start
                     else:
@@ -48,8 +50,8 @@ def main():
                         positive = config.PREICTAL_SECONDS
                         test_positive_seconds += positive
                         test_negative_seconds += negative
-                        if n_seizures == 1:
-                            files_with_1_seizure += 1
+                        if i == 0:
+                            unique_files_with_seizures += 1
                             test_positive_seconds_1 += positive
                             test_negative_seconds_1 += negative
         data[patient]["files_without_seizures"] = files_without_seizures
@@ -59,14 +61,14 @@ def main():
         data[patient]["test_negative_hours"] = test_negative_seconds/3600
         data[patient]["test_positive_hours"] = test_positive_seconds/3600
         data[patient]["test_unbalance"] = test_positive_seconds/test_negative_seconds*100
-        data[patient]["files_with_1_seizure"] = files_with_1_seizure
+        data[patient]["unique_files_with_seizures"] = unique_files_with_seizures
         data[patient]["test_negative_hours_1"] = test_negative_seconds_1/3600
         data[patient]["test_positive_hours_1"] = test_positive_seconds_1/3600
         data[patient]["test_unbalance_1"] = test_positive_seconds_1/test_negative_seconds_1*100
 
     df = pd.DataFrame(data).T
     df["files_without_seizures"] = pd.to_numeric(df["files_without_seizures"], downcast="integer")
-    df["files_with_1_seizure"] = pd.to_numeric(df["files_with_1_seizure"], downcast="integer")
+    df["unique_files_with_seizures"] = pd.to_numeric(df["unique_files_with_seizures"], downcast="integer")
     df["total_files"] = pd.to_numeric(df["total_files"], downcast="integer")
     df["n_seizures"] = pd.to_numeric(df["n_seizures"], downcast="integer")
     print(df.sort_index().round(2))
