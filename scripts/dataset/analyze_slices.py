@@ -70,7 +70,7 @@ def main():
     df["total_files"] = pd.to_numeric(df["total_files"], downcast="integer")
     df["n_seizures"] = pd.to_numeric(df["n_seizures"], downcast="integer")
     print(df.sort_index().round(2))
-    df.sort_index().round(2).to_csv(output_path.joinpath("slices_analysis.csv"))
+    df.sort_index().round(2).to_csv(output_path.joinpath(config.SLICES_ANALYSIS_FILENAME))
     # print(f"{patient}: {files_without_seizures}/{total_files}, {training_seconds/3600:.2f} hours")
 
 

@@ -1,20 +1,20 @@
+import copy
 import json
 import pathlib
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List
 
 import config
 import h5py
 import mne
 import numpy as np
 from tqdm import tqdm
-from utils import ResizableH5Dataset
 
 
-def other_files(output_path, filter_out):
-    return list(filter(lambda x: x.name != filter_out, output_path.iterdir()))
+def other_files(output_path, *filter_out):
+    return list(filter(lambda x: x.name not in filter_out, output_path.iterdir()))
 
 
-def load_slices_metadata(output_path) -> Dict[str, Dict[str, List[List]]]:
+def load_slices_metadata(output_path) -> Dict[str, Dict[str, Dict[str, List[List]]]]:
     with open(output_path.joinpath(config.SLICES_FILENAME)) as f:
         return json.load(f)
 
@@ -37,40 +37,40 @@ def extract_data(raw: mne.io.Raw) -> np.ndarray:
     return data
 
 
-def split_ictals(raw_edf: mne.io.Raw, segments: List) -> List[Dict[str, Any]]:
-    res = []
-    for start, end, contains_seizure in segments:
-        segment = {}
-        if contains_seizure:
-            preictal_start = max(start, end - config.PREICTAL_SECONDS)
-            # end - preictal_start must be divisible by effective window size
-            preictal_duration = end - preictal_start
-            effective_window_size = config.WINDOW_SIZE_SECONDS-config.WINDOW_OVERLAP_SECONDS
-            skip = (preictal_duration - config.WINDOW_OVERLAP_SECONDS) % effective_window_size
-            if skip != 0:
-                pass
-            segment['preictal'] = raw_edf.copy().crop(preictal_start + skip, end, include_tmax=False)
-            if preictal_start > start:
-                segment['interictal'] = raw_edf.copy().crop(start, preictal_start, include_tmax=False)
-        else:
-            segment["interictal"] = raw_edf.copy().crop(start, end, include_tmax=False)
-        res.append(segment)
-    return res
-
-
 def split_epochs(edf: mne.io.Raw, duration: int, overlap: int) -> mne.io.Raw:
     return mne.make_fixed_length_epochs(edf, duration=duration, overlap=overlap)  # type: ignore
 
 
-def extract_data_and_labels(edf_path: pathlib.Path, segments: List) -> List[Dict[str, Any]]:
+def adjust_training_segment_duration(segment: List, duration: int, overlap: int):
+    start, end, _ = segment
+    segment_duration = end - start
+    effective_window_size = duration - overlap
+    skip = (segment_duration - overlap) % effective_window_size
+    segment = copy.deepcopy(segment)
+    segment[0] += skip
+    return segment
+
+
+def extract_test_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int) -> List[np.ndarray]:
+    res = []
+    for segment in (s for s in segments if s[2] == True):
+        segment = adjust_training_segment_duration(segment, duration, overlap)
+        data = extract_single_segment_data(edf_path, segment, duration, overlap)
+        res.append(data)
+    return res
+
+
+def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int) -> np.ndarray:
+    assert len(segments) == 1 and segments[0][2] == False
+    return extract_single_segment_data(edf_path, segments[0], duration, overlap)
+
+
+def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration: int, overlap: int) -> np.ndarray:
+    start, end, _ = segment
     raw_edf = read_raw_edf(edf_path)
-    samples = split_ictals(raw_edf, segments)
-
-    for i in range(len(samples)):
-        for k in samples[i]:
-            samples[i][k] = extract_data(split_epochs(samples[i][k], config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS))
-
-    return samples
+    raw_edf = raw_edf.copy().crop(start, end, include_tmax=False)
+    epochs = split_epochs(raw_edf, duration, overlap)
+    return extract_data(epochs)
 
 
 def main():
@@ -78,37 +78,30 @@ def main():
     dataset_path = config.DATASET_PATH
     output_path = config.H5_PATH
     output_path.mkdir(exist_ok=True, parents=True)
-    if other_files(output_path, config.SLICES_FILENAME):
+    if other_files(output_path, config.SLICES_FILENAME, config.SLICES_ANALYSIS_FILENAME):
         print(f"Output path contains files other than {config.SLICES_FILENAME}")
         return
 
     slices_metadata = load_slices_metadata(output_path)
     for patient, patient_slices in tqdm(slices_metadata.items(), desc="Patients"):
+        n_normals = 0
+        n_anomalies = 0
         with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
-            anomalies = 0
-            for edf_filename, content in patient_slices.items():
+            for edf_filename, content in tqdm(patient_slices.items(), desc=f"{patient}", leave=False):
+                if edf_filename in config.DISCARDED_EDFS:
+                    continue
                 n_seizures = content["n_seizures"]
                 slices = content["slices"]
                 edf_path = dataset_path.joinpath(patient, edf_filename)
-                samples = extract_data_and_labels(edf_path, slices)
                 if n_seizures == 0:
-                    for sample in samples:
-                        assert 'preictal' not in sample
-                        interictal = sample['interictal']
-                        if sample['interictal']:
-                            f.create_dataset(f"{patient}/train/{edf_filename}", data=np.concatenate(interictal_windows))
+                    normal = extract_training_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    f.create_dataset(f"{patient}/train/{n_normals}", data=normal)
+                    n_normals += 1
                 else:
-                    assert len(preictal_windows) > 0
-
-                if edf_filename in config.DISCARDED_EDFS:
-                    continue
-            for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
-
-                edf_path = dataset_path.joinpath(patient, edf_filename)
-                interictal_windows, preictal_windows = extract_data_and_labels(edf_path, segments)
-                for p in preictal_windows:
-                    f.create_dataset(f"{patient}/anomaly/{anomalies}", data=p)
-                    anomalies += 1
+                    tests = extract_test_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    for test in tests:
+                        f.create_dataset(f"{patient}/test/{n_anomalies}", data=test)
+                        n_anomalies += 1
 
 
 if __name__ == '__main__':
