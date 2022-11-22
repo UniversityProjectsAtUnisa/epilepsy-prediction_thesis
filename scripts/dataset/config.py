@@ -1,6 +1,7 @@
-from utils import get_envvar
 import pathlib
+
 from dotenv import load_dotenv
+from utils import get_envvar
 
 load_dotenv()
 

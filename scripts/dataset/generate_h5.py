@@ -1,11 +1,12 @@
-import config
-import h5py
 import json
 import pathlib
+from typing import Any, Dict, List, Tuple
+
+import config
+import h5py
 import mne
 import numpy as np
 from tqdm import tqdm
-from typing import Any
 from utils import ResizableH5Dataset
 
 
@@ -13,7 +14,7 @@ def other_files(output_path, filter_out):
     return list(filter(lambda x: x.name != filter_out, output_path.iterdir()))
 
 
-def load_slices_metadata(output_path) -> dict[str, dict[str, dict[str, Any]]]:
+def load_slices_metadata(output_path) -> Dict[str, Dict[str, List[List]]]:
     with open(output_path.joinpath(config.SLICES_FILENAME)) as f:
         return json.load(f)
 
@@ -36,7 +37,7 @@ def extract_data(raw: mne.io.Raw) -> np.ndarray:
     return data
 
 
-def split_ictals(raw_edf: mne.io.Raw, segments: list) -> list[dict[str, Any]]:
+def split_ictals(raw_edf: mne.io.Raw, segments: List) -> List[Dict[str, Any]]:
     res = []
     for start, end, contains_seizure in segments:
         segment = {}
@@ -61,7 +62,7 @@ def split_epochs(edf: mne.io.Raw, duration: int, overlap: int) -> mne.io.Raw:
     return mne.make_fixed_length_epochs(edf, duration=duration, overlap=overlap)  # type: ignore
 
 
-def extract_data_and_labels(edf_path: pathlib.Path, segments: list) -> list[dict[str, Any]]:
+def extract_data_and_labels(edf_path: pathlib.Path, segments: List) -> List[Dict[str, Any]]:
     raw_edf = read_raw_edf(edf_path)
     samples = split_ictals(raw_edf, segments)
 
