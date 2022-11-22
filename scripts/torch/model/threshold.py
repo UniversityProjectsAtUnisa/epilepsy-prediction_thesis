@@ -1,7 +1,8 @@
-import pickle
-import torch
 import pathlib
+import pickle
 from typing import Optional
+
+import torch
 from skimage.filters.thresholding import threshold_otsu
 
 
@@ -23,7 +24,7 @@ class Threshold:
             pickle.dump(self, f)
 
     def fit(self, x: torch.Tensor):
-        self.threshold = threshold_otsu(x.cpu().numpy())
+        self.threshold = x.max()
 
     def fit_transform(self, x: torch.Tensor):
         self.fit(x)

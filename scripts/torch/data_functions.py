@@ -1,17 +1,10 @@
 import numpy as np
-# import pandas as pd
-# from typing import Any
-# import os
 import numpy as np
-# import pandas as pd
-# from sklearn.model_selection import train_test_split, KFold
-# from sklearn.metrics import classification_report, confusion_matrix
-# from typing import Any
 import torch
 import h5py
 from sklearn.model_selection import train_test_split
 import torch_config as config
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from itertools import islice
 
 
@@ -21,49 +14,51 @@ def is_consecutive(l):
     return sum(l) == ans
 
 
-# def split_data(X: np.ndarray, test_size=0.2) -> tuple[np.ndarray, np.ndarray]:
-#     print("Splitting data... ", end=" ")
-#     data: tuple[np.ndarray, np.ndarray] = train_test_split(X, test_size=test_size)  # type: ignore
-#     X_train, X_test = data
-#     return X_train, X_test
-
-def split_data(X_normal: np.ndarray, X_anomalies: List[np.ndarray],
-               train_size=0.8, random_state=1) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[np.ndarray]]:
+def split_data(X_normal: Tuple[np.ndarray], train_size=0.8, random_state=1):
     print("Splitting data... ", end=" ")
-    X_train, rest = train_test_split(X_normal, train_size=train_size, random_state=random_state)  # type: ignore
-    n_anomalies = sum([x.shape[0] for x in X_anomalies])
-    if n_anomalies > len(rest):
-        raise ValueError("Not enough data for anomalies")
-    X_val, X_test = train_test_split(rest, test_size=n_anomalies, random_state=random_state)
+    X_train, X_val = train_test_split(X_normal, train_size=train_size, random_state=random_state)  # type: ignore
     print("DONE")
-    return X_train, X_val, X_test, X_anomalies  # type: ignore
+    return np.concatenate(X_train), np.concatenate(X_val)
 
 
 def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
     return tuple([torch.tensor(x).float() for x in Xs])
 
 
-def load_data(dataset_path, patient_name):
+def preprocess_data(X: np.ndarray) -> np.ndarray:
+    return X.mean(axis=1)
 
-    print("Loading data... ", end=" ")
 
+def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]], Optional[Tuple[np.ndarray]]]:
+    X_train = None
+    X_test = None
     with h5py.File(dataset_path) as f:
-        if config.PARTIAL_TRAINING == 0:
-            X_normal: np.ndarray = f[f"{patient_name}/normal"][:]  # type: ignore
-        else:
-            X_normal: np.ndarray = f[f"{patient_name}/normal"][:config.PARTIAL_TRAINING]  # type: ignore
-        # X: np.ndarray = f[f"{patient_name}/normal"][:]  # type: ignore
-        X_anomalies: List[np.ndarray] = []
-        anomaly_datasets_generator = (x[:] for x in f[f"{patient_name}/anomaly"].values())  # type: ignore
-        if config.MAX_ANOMALY_SLICES == 0:
-            X_anomalies = list(anomaly_datasets_generator)
-        else:
-            X_anomalies = list(islice(anomaly_datasets_generator, config.MAX_ANOMALY_SLICES))
+        if load_train:
+            print("Loading training data... ", end=" ")
+            if preprocess_data:
+                X_train_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/train"].values())  # type: ignore
+            else:
+                X_train_generator = (x[:] for x in f[f"{patient_name}/train"].values())  # type: ignore
+            if config.PARTIAL_TRAINING == 0:
+                X_train = tuple(X_train_generator)
+            else:
+                X_train = tuple(islice(X_train_generator, config.PARTIAL_TRAINING))
+            print("DONE")
+            print(f"Training recordings: {len(X_train)}")
+            print(f"Total training samples: {sum(x.shape[0] for x in X_train)}")
 
-    print(f'DONE')
-    print(f"Normal shape: {X_normal.shape}")
-    print(f"Anomalies shapes:")
-    print('\n'.join([str(x.shape) for x in X_anomalies]))
-    print(f"Total anomalies: {sum([x.shape[0] for x in X_anomalies])}")
+        if load_test:
+            print("Loading test data... ", end=" ")
+            if preprocess:
+                X_test_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/test"].values())  # type: ignore
+            else:
+                X_test_generator = (x[:] for x in f[f"{patient_name}/test"].values())  # type: ignore
+            if config.PARTIAL_TESTING == 0:
+                X_test = tuple(X_test_generator)
+            else:
+                X_test = tuple(islice(X_test_generator, config.PARTIAL_TESTING))
+            print(f'DONE')
+            print(f"Testing recordings: {len(X_test)}")
+            print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
 
-    return X_normal, X_anomalies
+    return X_train, X_test

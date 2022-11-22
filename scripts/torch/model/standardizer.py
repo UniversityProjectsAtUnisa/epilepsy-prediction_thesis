@@ -1,5 +1,6 @@
-import torch
 import pathlib
+
+import torch
 
 
 class Standardizer():

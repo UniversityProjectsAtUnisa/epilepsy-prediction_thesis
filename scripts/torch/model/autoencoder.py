@@ -1,18 +1,20 @@
-from torch import nn
-import torch
-import time
 import copy
-import numpy as np
-from .modules.conv_encoder import ConvEncoder
-from .modules.conv_decoder import ConvDecoder
-from .modules.lstm_autoencoder import LSTMAutoencoder
-from .helpers import plotfunction as pf
-from .helpers.history import History
-from torch.utils.data import DataLoader
 import math
 import pathlib
+import time
+
+import numpy as np
+import torch
 import torch_config as config
+from torch import nn
+from torch.utils.data import DataLoader
 from utils.gpu_utils import device_context
+
+from .helpers import plotfunction as pf
+from .helpers.history import History
+from .modules.conv_decoder import ConvDecoder
+from .modules.conv_encoder import ConvEncoder
+from .modules.lstm_autoencoder import LSTMAutoencoder
 
 
 class Autoencoder(nn.Module):
@@ -20,32 +22,18 @@ class Autoencoder(nn.Module):
     model_filename = 'model.pth'
     state_dict_filename = 'checkpoint.pth'
 
-    def __init__(self, sample_length, n_filters, n_channels, kernel_size, n_subwindows):
+    def __init__(self, sample_length, n_subwindows):
         super(Autoencoder, self).__init__()
         self.n_subwindows = n_subwindows
-        n_channels = n_channels
 
         len_subwindows = sample_length//n_subwindows
         encoding_dim = len_subwindows//2
-
-        self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels, n_filters=n_filters, kernel_size=kernel_size)
-        for i in range(n_filters):
-            setattr(self, f"lstm_autoencoder_{i}", LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim))
+        self.lstm_autoencoder = LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim)
 
     def forward(self, x):
-        x = self.conv_encoder(x)
-
-        filter_maps = []
-        for i in range(x.shape[1]):
-            y = x[:, i, :, :]
-            y = y.reshape(y.shape[0], self.n_subwindows, -1)
-            y = getattr(self, f"lstm_autoencoder_{i}")(y)
-            y = y.reshape(y.shape[0], 1, -1)
-            filter_maps.append(y)
-        x = torch.stack(filter_maps, dim=1)
-        x = self.conv_decoder(x)
-        x = x.reshape(-1, x.shape[2], x.shape[3])
+        x = x.reshape(x.shape[0], self.n_subwindows, -1)
+        x = self.lstm_autoencoder(x)
+        x = x.reshape(x.shape[0], -1)
         return x
 
     def predict(self, X):
@@ -127,12 +115,6 @@ class Autoencoder(nn.Module):
         model = torch.load(model_path)
         if not isinstance(model, cls):
             raise Exception("Invalid model file")
-        return model
-
-    @classmethod
-    def load_from_checkpoint(cls, dirpath: pathlib.Path, sample_length, n_filters, n_channels, kernel_size, n_subwindows):
-        model = cls(sample_length, n_filters, n_channels, kernel_size, n_subwindows)
-        model.load_checkpoint(dirpath)
         return model
 
     def save(self, dirpath: pathlib.Path):
