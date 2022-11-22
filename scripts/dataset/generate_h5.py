@@ -5,6 +5,7 @@ import pathlib
 import mne
 import numpy as np
 from tqdm import tqdm
+from typing import Any
 from utils import ResizableH5Dataset
 
 
@@ -12,7 +13,7 @@ def other_files(output_path, filter_out):
     return list(filter(lambda x: x.name != filter_out, output_path.iterdir()))
 
 
-def load_slices_metadata(output_path) -> dict[str, dict[str, list[list]]]:
+def load_slices_metadata(output_path) -> dict[str, dict[str, dict[str, Any]]]:
     with open(output_path.joinpath(config.SLICES_FILENAME)) as f:
         return json.load(f)
 
@@ -35,10 +36,10 @@ def extract_data(raw: mne.io.Raw) -> np.ndarray:
     return data
 
 
-def split_ictals(raw_edf: mne.io.Raw, segments: list) -> tuple[list[mne.io.Raw], list[mne.io.Raw]]:
-    interictals = []
-    preictals = []
+def split_ictals(raw_edf: mne.io.Raw, segments: list) -> list[dict[str, Any]]:
+    res = []
     for start, end, contains_seizure in segments:
+        segment = {}
         if contains_seizure:
             preictal_start = max(start, end - config.PREICTAL_SECONDS)
             # end - preictal_start must be divisible by effective window size
@@ -47,38 +48,28 @@ def split_ictals(raw_edf: mne.io.Raw, segments: list) -> tuple[list[mne.io.Raw],
             skip = (preictal_duration - config.WINDOW_OVERLAP_SECONDS) % effective_window_size
             if skip != 0:
                 pass
-
-            preictals.append(raw_edf.copy().crop(preictal_start + skip, end, include_tmax=False))
+            segment['preictal'] = raw_edf.copy().crop(preictal_start + skip, end, include_tmax=False)
             if preictal_start > start:
-                interictals.append(raw_edf.copy().crop(start, preictal_start, include_tmax=False))
+                segment['interictal'] = raw_edf.copy().crop(start, preictal_start, include_tmax=False)
         else:
-            interictals.append(raw_edf.copy().crop(start, end, include_tmax=False))
-    return interictals, preictals
+            segment["interictal"] = raw_edf.copy().crop(start, end, include_tmax=False)
+        res.append(segment)
+    return res
 
 
-def split_epochs(edfs: list[mne.io.Raw], duration: int, overlap: int) -> list[mne.io.Raw]:
-    epochs_groups = []
-    for edf in edfs:
-        epochs = mne.make_fixed_length_epochs(edf, duration=duration, overlap=overlap)
-        epochs_groups.append(epochs)
-    return epochs_groups
+def split_epochs(edf: mne.io.Raw, duration: int, overlap: int) -> mne.io.Raw:
+    return mne.make_fixed_length_epochs(edf, duration=duration, overlap=overlap)  # type: ignore
 
 
-def extract_data_and_labels(edf_path: pathlib.Path, segments: list) -> tuple[list[np.ndarray], list[np.ndarray]]:
+def extract_data_and_labels(edf_path: pathlib.Path, segments: list) -> list[dict[str, Any]]:
     raw_edf = read_raw_edf(edf_path)
-    interictals, preictals = split_ictals(raw_edf, segments)
+    samples = split_ictals(raw_edf, segments)
 
-    interictal_epochs_groups = split_epochs(interictals, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-    interictal_data = []
-    for interictal_epochs in interictal_epochs_groups:
-        interictal_data.append(extract_data(interictal_epochs))
+    for i in range(len(samples)):
+        for k in samples[i]:
+            samples[i][k] = extract_data(split_epochs(samples[i][k], config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS))
 
-    preictal_epochs_groups = split_epochs(preictals, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-    preictal_data = []
-    for interictal_epochs in preictal_epochs_groups:
-        preictal_data.append(extract_data(interictal_epochs))
-
-    return interictal_data, preictal_data
+    return samples
 
 
 def main():
@@ -94,14 +85,26 @@ def main():
     for patient, patient_slices in tqdm(slices_metadata.items(), desc="Patients"):
         with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
             anomalies = 0
-            normal_dataset = ResizableH5Dataset(f"{patient}/normal")
-            for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
+            for edf_filename, content in patient_slices.items():
+                n_seizures = content["n_seizures"]
+                slices = content["slices"]
+                edf_path = dataset_path.joinpath(patient, edf_filename)
+                samples = extract_data_and_labels(edf_path, slices)
+                if n_seizures == 0:
+                    for sample in samples:
+                        assert 'preictal' not in sample
+                        interictal = sample['interictal']
+                        if sample['interictal']:
+                            f.create_dataset(f"{patient}/train/{edf_filename}", data=np.concatenate(interictal_windows))
+                else:
+                    assert len(preictal_windows) > 0
+
                 if edf_filename in config.DISCARDED_EDFS:
                     continue
+            for edf_filename, segments in tqdm(patient_slices.items(), leave=False, desc=f"Patient {patient}"):
+
                 edf_path = dataset_path.joinpath(patient, edf_filename)
                 interictal_windows, preictal_windows = extract_data_and_labels(edf_path, segments)
-                if interictal_windows:
-                    normal_dataset.append_data(f, data=np.concatenate(interictal_windows))
                 for p in preictal_windows:
                     f.create_dataset(f"{patient}/anomaly/{anomalies}", data=p)
                     anomalies += 1
