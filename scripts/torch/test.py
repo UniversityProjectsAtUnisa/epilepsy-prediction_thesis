@@ -11,10 +11,22 @@ def get_time_left(windows_left: int):
     return windows_left * (config.WINDOW_SIZE_SECONDS - config.WINDOW_OVERLAP_SECONDS)
 
 
-def print_sample_evaluations(preds: Tuple[np.ndarray]):
+def consecutive_preds(pred, consecutive_windows):
+    if len(pred) < consecutive_windows:
+        raise ValueError("Not enough windows to evaluate")
+    if consecutive_windows == 1:
+        return pred
+    ps = []
+    for i in range(len(pred) - (consecutive_windows - 1)):
+        ps.append(pred[i:i + consecutive_windows].sum() >= consecutive_windows/2)
+    return np.array(ps)
+
+
+def print_sample_evaluations(preds: Tuple[np.ndarray], consecutive_windows=1):
     correct_predictions = 0
     average_time_left = 0
     not_found = 0
+    preds = tuple(consecutive_preds(pred, consecutive_windows) for pred in preds)
     for sample_pred in preds:
         occurrence_indices = np.flatnonzero(sample_pred == 1)
         if len(occurrence_indices) == 0:
@@ -31,7 +43,10 @@ def print_sample_evaluations(preds: Tuple[np.ndarray]):
 
 
 def evaluate(preds: Tuple[np.ndarray]):
-    print_sample_evaluations(preds)
+    for i in range(1, 10, 2):
+        print(f"Consecutive windows: {i}")
+        print_sample_evaluations(preds, i)
+        print()
 
 
 def main():
