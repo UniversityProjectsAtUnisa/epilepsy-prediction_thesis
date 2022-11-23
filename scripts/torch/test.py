@@ -4,31 +4,33 @@ from model.anomaly_detector import AnomalyDetector
 import torch
 from typing import List, Tuple
 from utils.gpu_utils import device_context
+import numpy as np
 
 
 def get_time_left(windows_left: int):
     return windows_left * (config.WINDOW_SIZE_SECONDS - config.WINDOW_OVERLAP_SECONDS)
 
 
-def print_sample_evaluations(preds: Tuple[torch.Tensor]):
+def print_sample_evaluations(preds: Tuple[np.ndarray]):
     correct_predictions = 0
     average_time_left = 0
     not_found = 0
     for sample_pred in preds:
-        occurrence_indices = ((sample_pred == 1).nonzero(as_tuple=True)[0])
+        occurrence_indices = np.flatnonzero(sample_pred == 1)
         if len(occurrence_indices) == 0:
             not_found += 1
             continue
-        first_occurrence_index = int(occurrence_indices[0][0])
+        first_occurrence_index = int(occurrence_indices[0])
         time_left = get_time_left(len(sample_pred) - first_occurrence_index)
         correct_predictions += time_left <= config.PREICTAL_SECONDS
         average_time_left += time_left
     average_time_left /= len(preds) - not_found
     print(f"Accuracy: {correct_predictions / len(preds)} ({correct_predictions} / {len(preds)})")
+    print(f"Samples not found: {not_found} / {len(preds)}")
     print(f"Average time left: {average_time_left} seconds")
 
 
-def evaluate(preds: Tuple[torch.Tensor]):
+def evaluate(preds: Tuple[np.ndarray]):
     print_sample_evaluations(preds)
 
 
@@ -45,7 +47,7 @@ def main():
 
     with device_context:
         model = AnomalyDetector.load(dirpath)
-        preds = tuple(model.predict(x) for x in X_test)
+        preds = tuple(model.predict(x).cpu().numpy() for x in X_test)
 
     evaluate(preds)
 
