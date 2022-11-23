@@ -12,13 +12,15 @@ def get_time_left(windows_left: int):
 
 
 def consecutive_preds(pred, consecutive_windows):
+    if consecutive_windows < 1:
+        raise ValueError("consecutive_windows must be >= 1")
     if len(pred) < consecutive_windows:
         raise ValueError("Not enough windows to evaluate")
     if consecutive_windows == 1:
         return pred
     ps = []
     for i in range(len(pred) - (consecutive_windows - 1)):
-        ps.append(pred[i:i + consecutive_windows].sum() >= consecutive_windows/2)
+        ps.append(pred[i:i + consecutive_windows+1].sum() >= consecutive_windows/2)
     return np.array(ps)
 
 
