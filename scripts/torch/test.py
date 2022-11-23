@@ -38,14 +38,17 @@ def print_sample_evaluations(preds: Tuple[np.ndarray], consecutive_windows=1):
         time_left = get_time_left(len(sample_pred) - first_occurrence_index)
         correct_predictions += time_left <= config.PREICTAL_SECONDS
         average_time_left += time_left
+    if len(preds) == not_found:
+        print("No predictions found")
+        return
     average_time_left /= len(preds) - not_found
-    print(f"Accuracy: {correct_predictions / len(preds)} ({correct_predictions} / {len(preds)})")
+    print(f"Accuracy: {correct_predictions / len(preds):.3f} ({correct_predictions} / {len(preds)})")
     print(f"Samples not found: {not_found} / {len(preds)}")
     print(f"Average time left: {average_time_left} seconds")
 
 
 def evaluate(preds: Tuple[np.ndarray]):
-    for i in range(1, 10, 2):
+    for i in range(1, 10):
         print(f"Consecutive windows: {i}")
         print_sample_evaluations(preds, i)
         print()

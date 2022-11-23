@@ -3,7 +3,6 @@ import pickle
 from typing import Optional
 
 import torch
-from skimage.filters.thresholding import threshold_otsu
 
 
 class Threshold:
@@ -24,7 +23,7 @@ class Threshold:
             pickle.dump(self, f)
 
     def fit(self, x: torch.Tensor):
-        self.threshold = x.max()
+        self.threshold = float(x.max())
 
     def fit_transform(self, x: torch.Tensor):
         self.fit(x)

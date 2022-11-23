@@ -112,7 +112,7 @@ class Autoencoder(nn.Module):
     @classmethod
     def load(cls, dirpath: pathlib.Path):
         model_path = dirpath.joinpath(cls.model_filename)
-        model = torch.load(model_path)
+        model = torch.load(model_path, map_location=device_context.device)
         if not isinstance(model, cls):
             raise Exception("Invalid model file")
         return model
