@@ -1,5 +1,5 @@
 import torch_config as config
-from data_functions import convert_to_tensor, load_data, split_data, preprocess_data
+from data_functions import convert_to_tensor, load_data, split_data
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 
