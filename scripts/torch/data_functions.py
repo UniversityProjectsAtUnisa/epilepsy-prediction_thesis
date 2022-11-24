@@ -25,20 +25,13 @@ def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
     return tuple([torch.tensor(x).float() for x in Xs])
 
 
-def preprocess_data(X: np.ndarray) -> np.ndarray:
-    return X.mean(axis=1)
-
-
-def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]], Optional[Tuple[np.ndarray]]]:
+def load_data(dataset_path, patient_name, load_train=True, load_test=True) -> Tuple[Optional[Tuple[np.ndarray]], Optional[Tuple[np.ndarray]]]:
     X_train = None
     X_test = None
     with h5py.File(dataset_path) as f:
         if load_train:
             print("Loading training data... ", end=" ")
-            if preprocess_data:
-                X_train_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/train"].values())  # type: ignore
-            else:
-                X_train_generator = (x[:] for x in f[f"{patient_name}/train"].values())  # type: ignore
+            X_train_generator = (x[:] for x in f[f"{patient_name}/train"].values())  # type: ignore
             if config.PARTIAL_TRAINING == 0:
                 X_train = tuple(X_train_generator)
             else:
@@ -49,10 +42,7 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
 
         if load_test:
             print("Loading test data... ", end=" ")
-            if preprocess:
-                X_test_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/test"].values())  # type: ignore
-            else:
-                X_test_generator = (x[:] for x in f[f"{patient_name}/test"].values())  # type: ignore
+            X_test_generator = (x[:] for x in f[f"{patient_name}/test"].values())  # type: ignore
             if config.PARTIAL_TESTING == 0:
                 X_test = tuple(X_test_generator)
             else:

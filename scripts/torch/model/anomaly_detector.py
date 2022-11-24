@@ -27,8 +27,9 @@ class AnomalyDetector:
 
     def train(self, X_train, X_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
         # Train model
-        sample_length = X_train.shape[1]
-        self.model = Autoencoder(sample_length, config.N_SUBWINDOWS)
+        n_channels = X_train.shape[1]
+        sample_length = X_train.shape[2]
+        self.model = Autoencoder(sample_length, n_channels, config.N_SUBWINDOWS)
         self.model.train_model(X_train, X_val, n_epochs=n_epochs, batch_size=batch_size, dirpath=dirpath.joinpath(
             self.model_dirname), learning_rate=learning_rate, plot_result=plot_result)
 

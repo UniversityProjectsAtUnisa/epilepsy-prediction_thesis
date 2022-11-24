@@ -22,18 +22,19 @@ class Autoencoder(nn.Module):
     model_filename = 'model.pth'
     state_dict_filename = 'checkpoint.pth'
 
-    def __init__(self, sample_length, n_subwindows):
+    def __init__(self, sample_length, n_channels, n_subwindows):
         super(Autoencoder, self).__init__()
-        self.n_subwindows = n_subwindows
 
         len_subwindows = sample_length//n_subwindows
         encoding_dim = len_subwindows//2
+        self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels)
+        self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels)
         self.lstm_autoencoder = LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim)
 
     def forward(self, x):
-        x = x.reshape(x.shape[0], self.n_subwindows, -1)
+        x = self.conv_encoder(x)
         x = self.lstm_autoencoder(x)
-        x = x.reshape(x.shape[0], -1)
+        x = self.conv_decoder(x)
         return x
 
     def predict(self, X):
