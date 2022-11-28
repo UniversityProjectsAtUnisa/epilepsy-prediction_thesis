@@ -34,6 +34,7 @@ def read_raw_edf(edf_path: pathlib.Path) -> mne.io.Raw:
 def extract_data(raw: mne.io.Raw) -> np.ndarray:
     raw = raw.load_data()
     data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
+    data = abs(np.diff(data, prepend=data[:, :, 0].reshape(data.shape[0], data.shape[1], 1)))
     return data
 
 
