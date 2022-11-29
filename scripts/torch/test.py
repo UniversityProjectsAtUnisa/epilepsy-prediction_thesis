@@ -1,4 +1,4 @@
-from data_functions import load_data, convert_to_tensor, load_patient_names
+from data_functions import load_data, convert_to_tensor, load_patient_names, split_data
 from evaluation import quality_metrics as qm
 from evaluation import plot_functions as pf
 from model.helpers.history import History
@@ -75,31 +75,41 @@ def main():
     else:
         patient_names = sorted(load_patient_names(config.H5_FILEPATH))
 
-    metrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
+    percentiles = np.linspace(95, 100, 11, endpoint=True)
+    metrics_df = {perc: pd.DataFrame(columns=config.METRIC_NAMES) for perc in percentiles}
 
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        _, X_test = load_data(config.H5_FILEPATH, patient_name, load_train=False)
+        X_normal, X_test = load_data(config.H5_FILEPATH, patient_name)
+        if not X_normal:
+            raise ValueError("No training data found")
+        _, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
 
         if X_test is None:
             raise ValueError("No test data found")
 
+        X_val, = convert_to_tensor(X_val)
         X_test = convert_to_tensor(*X_test)
-
-        with device_context:
-            model = AnomalyDetector.load(patient_dirpath)
-            preds = tuple(model.predict(x) for x in X_test)
 
         history = History.load(patient_dirpath/AnomalyDetector.model_dirname/Autoencoder.history_filename)
         history_plot = pf.plot_train_val_losses(history.train, history.val)
         history_plot.savefig(str(patient_dirpath/config.LOSS_PLOT_FILENAME))
 
-        metrics = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-        new_metrics_df = pd.DataFrame([metrics], index=[patient_name])
-        metrics_df = pd.concat([metrics_df, new_metrics_df])
+        with device_context:
+            model = AnomalyDetector.load(patient_dirpath)
+            for perc in percentiles:
+                losses_val = model.model.calculate_losses(X_val)  # type: ignore
+                model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
+                preds = tuple(model.predict(x) for x in X_test)
+
+                metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
+                metrics_df[perc] = pd.concat([metrics_df[perc], new_metrics_df])
         print()
-    metrics_df.to_csv(dirpath.joinpath(config.METRICS_FILENAME))
+
+    for k, m in metrics_df.items():
+        m.to_csv(dirpath.joinpath(f"{k}_{config.METRICS_FILENAME}"))
 
 
 if __name__ == '__main__':
