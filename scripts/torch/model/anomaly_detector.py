@@ -22,14 +22,20 @@ class AnomalyDetector:
         threshold = Threshold.load(threshold_path)
         return cls(model, threshold)
 
-    def __init__(self, model: Optional[Autoencoder] = None, threshold: Optional[Threshold] = None):
+    def __init__(self, model: Optional[Autoencoder] = None, threshold: Optional[Threshold] = None, use_convolution=False):
         self.model = model
         self.threshold = threshold
+        self.use_convolution = use_convolution
 
     def train(self, X_train, X_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
         # Train model
-        sample_length = X_train.shape[1]
-        self.model = Autoencoder(sample_length, config.N_SUBWINDOWS)
+        if self.use_convolution:
+            n_channels = X_train.shape[1]
+            sample_length = X_train.shape[2]
+        else:
+            n_channels = None
+            sample_length = X_train.shape[1]
+        self.model = Autoencoder(sample_length, config.N_SUBWINDOWS, n_channels, use_convolution=self.use_convolution)
         self.model.train_model(X_train, X_val, n_epochs=n_epochs, batch_size=batch_size, dirpath=dirpath.joinpath(
             self.model_dirname), learning_rate=learning_rate, plot_result=plot_result)
 

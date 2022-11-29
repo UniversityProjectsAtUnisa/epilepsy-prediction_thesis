@@ -40,7 +40,7 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
     with h5py.File(dataset_path) as f:
         if load_train:
             print("Loading training data... ", end=" ")
-            if preprocess_data:
+            if preprocess:
                 X_train_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/train"].values())  # type: ignore
             else:
                 X_train_generator = (x[:] for x in f[f"{patient_name}/train"].values())  # type: ignore

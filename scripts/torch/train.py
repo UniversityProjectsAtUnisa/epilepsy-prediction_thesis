@@ -9,7 +9,7 @@ def train(patient_name):
     dirpath = config.SAVED_MODEL_PATH
     print(f"Training for patient {patient_name}")
     patient_dirpath = dirpath.joinpath(patient_name)
-    X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False)
+    X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
     if not X_normal:
         raise ValueError("No training data found")
     X_train, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
@@ -18,7 +18,7 @@ def train(patient_name):
 
     with device_context:
         X_train, X_val = convert_to_tensor(X_train, X_val)
-        model = AnomalyDetector()
+        model = AnomalyDetector(use_convolution=config.USE_CONVOLUTION)
         model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE, dirpath=patient_dirpath, learning_rate=config.LEARNING_RATE)
 
     model.save(patient_dirpath)
@@ -37,6 +37,8 @@ def main():
 
     with Pool(3) as p:
         p.map(train, patient_names)
+    # for patient_name in patient_names:
+    #     train(patient_name)
 
 
 if __name__ == '__main__':
