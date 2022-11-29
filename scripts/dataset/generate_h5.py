@@ -77,7 +77,7 @@ def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration:
 def main():
     mne.set_log_level("ERROR")
     dataset_path = config.DATASET_PATH
-    output_path = config.H5_PATH
+    output_path = config.H5_DIRPATH
     output_path.mkdir(exist_ok=True, parents=True)
     if other_files(output_path, config.SLICES_FILENAME, config.SLICES_ANALYSIS_FILENAME):
         print(f"Output path contains files other than {config.SLICES_FILENAME}")

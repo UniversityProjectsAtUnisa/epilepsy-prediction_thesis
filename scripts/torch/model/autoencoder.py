@@ -5,7 +5,6 @@ import time
 
 import numpy as np
 import torch
-import torch_config as config
 from torch import nn
 from torch.utils.data import DataLoader
 from utils.gpu_utils import device_context
@@ -46,6 +45,7 @@ class Autoencoder(nn.Module):
 
     def predict_with_losses(self, X_true):
         # criterion = nn.L1Loss(reduction='sum').to(model.device)
+        was_on_cpu = not X_true.is_cuda
         X_true = X_true.to(device_context.device)
         criterion = nn.MSELoss(reduction="none")
         with torch.no_grad():
@@ -53,6 +53,9 @@ class Autoencoder(nn.Module):
             X_pred = self(X_true)
             dim = tuple(range(1, len(X_true.shape)))
             losses = criterion(X_pred, X_true).mean(dim)
+        if was_on_cpu:
+            X_pred = X_pred.cpu()
+            losses = losses.cpu()
         return X_pred, losses
 
     def train_model(self, X_train, X_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
@@ -64,14 +67,12 @@ class Autoencoder(nn.Module):
         best_model_wts = copy.deepcopy(self.state_dict())
         best_loss = math.inf
 
+        start_time = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"Training started: {start_time}")
         for epoch in range(1, n_epochs + 1):
 
             train_losses, val_losses = [], []
 
-            begin_time = time.strftime("%H:%M:%S", time.localtime())
-            print(f'Time: {begin_time} -- Training Epoch {epoch}...', end=" ")
-
-            # self = self.train()
             self.train()
 
             for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, pin_memory=True, generator=torch.Generator(device=device_context.device)):
@@ -103,8 +104,9 @@ class Autoencoder(nn.Module):
                 if plot_result:
                     pf.plot_loss_throw_epochs(history, "model")
 
-            end_time = time.strftime("%H:%M:%S", time.localtime())
-            print(f'Time: {end_time} -- train_loss: {round(train_loss, 6)}, val_loss: {round(val_loss, 6)}')
+            # print current time in format HH:MM:SS
+            end_time = time.strftime('%H:%M:%S', time.localtime(time.time()))
+            print(f'{epoch}/{n_epochs}, time: {end_time}, train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}')
 
         self.load_state_dict(best_model_wts)
         return history

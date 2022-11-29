@@ -29,6 +29,11 @@ def preprocess_data(X: np.ndarray) -> np.ndarray:
     return X.mean(axis=1)
 
 
+def load_patient_names(dataset_path) -> List[str]:
+    with h5py.File(dataset_path) as f:
+        return list(f.keys())
+
+
 def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]], Optional[Tuple[np.ndarray]]]:
     X_train = None
     X_test = None

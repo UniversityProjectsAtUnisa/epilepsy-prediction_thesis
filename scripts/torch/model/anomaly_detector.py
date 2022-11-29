@@ -3,6 +3,7 @@ from typing import Optional
 
 import torch
 import torch_config as config
+from utils.gpu_utils import device_context
 
 from .autoencoder import Autoencoder
 from .threshold import Threshold
@@ -38,11 +39,16 @@ class AnomalyDetector:
         self.threshold.fit(losses_val)
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
+        was_on_cpu = not X.is_cuda
+        X.to(device_context.device)
         if self.model is None or self.threshold is None:
             raise Exception("Model not trained nor loaded")
 
         losses = self.model.calculate_losses(X)
-        return self.threshold.transform(losses)
+        preds = self.threshold.transform(losses)
+        if was_on_cpu:
+            preds = preds.cpu()
+        return preds
 
     def save(self, dirpath: pathlib.Path):
         if self.model is None or self.threshold is None:

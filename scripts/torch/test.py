@@ -1,10 +1,15 @@
-from data_functions import load_data, split_data, convert_to_tensor
+from data_functions import load_data, convert_to_tensor, load_patient_names
+from evaluation import quality_metrics as qm
+from evaluation import plot_functions as pf
+from model.helpers.history import History
 import torch_config as config
 from model.anomaly_detector import AnomalyDetector
-import torch
-from typing import List, Tuple
+from model.autoencoder import Autoencoder
 from utils.gpu_utils import device_context
+
 import numpy as np
+import math
+import pandas as pd
 
 
 def get_time_left(windows_left: int):
@@ -24,7 +29,7 @@ def consecutive_preds(pred, consecutive_windows):
     return np.array(ps)
 
 
-def print_sample_evaluations(preds: Tuple[np.ndarray], consecutive_windows=1):
+def print_sample_evaluations(preds, consecutive_windows=1):
     correct_predictions = 0
     average_time_left = 0
     not_found = 0
@@ -47,29 +52,54 @@ def print_sample_evaluations(preds: Tuple[np.ndarray], consecutive_windows=1):
     print(f"Average time left: {average_time_left} seconds")
 
 
-def evaluate(preds: Tuple[np.ndarray]):
-    for i in range(1, 10):
-        print(f"Consecutive windows: {i}")
-        print_sample_evaluations(preds, i)
-        print()
+def evaluate(preds, preictal_seconds, window_size_seconds, window_overlap_seconds):
+    n_positive_windows = math.ceil(preictal_seconds // (window_size_seconds - window_overlap_seconds))
+    metrics = {}
+    metrics['seizures'] = len(preds)
+    metrics['undetected%'] = 100*qm.undetected_predictions(preds)
+    metrics['pred%'] = 100*qm.prediction_accuracy(preds, n_positive_windows)
+    metrics['spec%'] = 100*qm.specificity(preds, n_positive_windows)
+    metrics['APT (s)'], metrics['mPT (s)'], metrics['MPT (s)'] = qm.prediction_seconds_before_seizure(preds, window_size_seconds, window_overlap_seconds)
+    metrics['PPV (%)'] = 100*qm.ppv(preds, n_positive_windows)
+    metrics['BPPV (%)'] = 100*qm.bppv(preds, n_positive_windows)
+    metrics['Imb. (%)'] = 100*qm.imbalanceness(preds, n_positive_windows)
+    return metrics
 
 
 def main():
     dirpath = config.SAVED_MODEL_PATH
     dirpath.mkdir(exist_ok=True, parents=True)
-    # Load data
-    _, X_test = load_data(config.H5_PATH.joinpath(config.H5_FILENAME), "chb15", load_train=False)
 
-    if X_test is None:
-        raise ValueError("No test data found")
+    if config.PATIENT_ID:
+        patient_names = [config.PATIENT_ID]
+    else:
+        patient_names = sorted(load_patient_names(config.H5_FILEPATH))
 
-    X_test = convert_to_tensor(*X_test)
+    metrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
 
-    with device_context:
-        model = AnomalyDetector.load(dirpath)
-        preds = tuple(model.predict(x).cpu().numpy() for x in X_test)
+    for patient_name in patient_names:
+        print(f"Testing for patient {patient_name}")
+        patient_dirpath = dirpath.joinpath(patient_name)
+        _, X_test = load_data(config.H5_FILEPATH, patient_name, load_train=False)
 
-    evaluate(preds)
+        if X_test is None:
+            raise ValueError("No test data found")
+
+        X_test = convert_to_tensor(*X_test)
+
+        with device_context:
+            model = AnomalyDetector.load(patient_dirpath)
+            preds = tuple(model.predict(x) for x in X_test)
+
+        history = History.load(patient_dirpath/AnomalyDetector.model_dirname/Autoencoder.history_filename)
+        history_plot = pf.plot_train_val_losses(history.train, history.val)
+        history_plot.savefig(str(patient_dirpath/config.LOSS_PLOT_FILENAME))
+
+        metrics = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+        new_metrics_df = pd.DataFrame([metrics], index=[patient_name])
+        metrics_df = pd.concat([metrics_df, new_metrics_df])
+        print()
+    metrics_df.to_csv(dirpath.joinpath(config.METRICS_FILENAME))
 
 
 if __name__ == '__main__':
