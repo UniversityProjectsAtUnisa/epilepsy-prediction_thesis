@@ -81,7 +81,7 @@ def main():
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_test = load_data(config.H5_FILEPATH, patient_name)
+        X_normal, X_test = load_data(config.H5_FILEPATH, patient_name, preprocess=not config.USE_CONVOLUTION)
         if not X_normal:
             raise ValueError("No training data found")
         _, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
