@@ -20,7 +20,7 @@ class AnomalyDetector:
 
         model = Autoencoder.load(model_path)
         threshold = Threshold.load(threshold_path)
-        return cls(model, threshold)
+        return cls(model, threshold, use_convolution=model.use_convolution)
 
     def __init__(self, model: Optional[Autoencoder] = None, threshold: Optional[Threshold] = None, use_convolution=False):
         self.model = model
