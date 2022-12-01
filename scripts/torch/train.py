@@ -9,6 +9,9 @@ def train(patient_name):
     dirpath = config.SAVED_MODEL_PATH
     print(f"Training for patient {patient_name}")
     patient_dirpath = dirpath.joinpath(patient_name)
+    if (patient_dirpath/"complete").exists():
+        print(f"Patient {patient_name} already trained")
+        return
     X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
     if not X_normal:
         raise ValueError("No training data found")
@@ -35,10 +38,10 @@ def main():
     else:
         patient_names = load_patient_names(config.H5_FILEPATH)
 
-    with Pool(3) as p:
-        p.map(train, patient_names)
-    # for patient_name in patient_names:
-    #     train(patient_name)
+    # with Pool(3) as p:
+    #     p.map(train, patient_names)
+    for patient_name in patient_names:
+        train(patient_name)
 
 
 if __name__ == '__main__':
