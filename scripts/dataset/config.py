@@ -20,6 +20,8 @@ H5_FILEPATH = H5_DIRPATH.joinpath(H5_FILENAME)
 USEFUL_CHANNELS = pathlib.Path(get_envvar("USEFUL_CHANNELS_FILENAME")).read_text().splitlines()
 WINDOW_SIZE_SECONDS = int(get_envvar('WINDOW_SIZE_SECONDS'))
 WINDOW_OVERLAP_SECONDS = int(get_envvar('WINDOW_OVERLAP_SECONDS'))
+USE_SPECTROGRAMS = bool(get_envvar("USE_SPECTROGRAMS", ""))
+
 
 _PARTIAL_PATHNAMES = pathlib.Path(get_envvar('PARTIAL_PATHNAMES_PATH')).read_text().splitlines()
 PARTIAL_PATHNAMES = {}

@@ -8,6 +8,8 @@ import h5py
 import mne
 import numpy as np
 from tqdm import tqdm
+from scipy import signal
+import cv2
 
 
 def other_files(output_path, *filter_out):
@@ -31,10 +33,25 @@ def read_raw_edf(edf_path: pathlib.Path) -> mne.io.Raw:
     return raw_edf  # type: ignore
 
 
-def extract_data(raw: mne.io.Raw) -> np.ndarray:
+def to_spectrogram(data: np.ndarray):
+    new_data = []
+    for window in data:
+        new_window = []
+        for channel in window:
+            _, _, Pxx = signal.spectrogram(channel, nfft=256, fs=256, noverlap=0)
+            spect = cv2.flip(np.uint8(10*np.log10(Pxx)), 0)  # type: ignore
+            new_window.append(spect[-40:])
+
+        new_data.append(np.array(new_window))
+    return np.array(new_data)
+
+
+def extract_data(raw: mne.io.Raw, use_spectrograms: bool) -> np.ndarray:
     raw = raw.load_data()
     data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
     data = abs(np.diff(data, prepend=data[:, :, 0].reshape(data.shape[0], data.shape[1], 1)))
+    if use_spectrograms:
+        data = to_spectrogram(data)
     return data
 
 
@@ -52,26 +69,26 @@ def adjust_training_segment_duration(segment: List, duration: int, overlap: int)
     return segment
 
 
-def extract_test_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int) -> List[np.ndarray]:
+def extract_test_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int, use_spectrograms: bool = False) -> List[np.ndarray]:
     res = []
     for segment in (s for s in segments if s[2] == True):
         segment = adjust_training_segment_duration(segment, duration, overlap)
-        data = extract_single_segment_data(edf_path, segment, duration, overlap)
+        data = extract_single_segment_data(edf_path, segment, duration, overlap, use_spectrograms)
         res.append(data)
     return res
 
 
-def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int) -> np.ndarray:
+def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int, use_spectrograms: bool = False) -> np.ndarray:
     assert len(segments) == 1 and segments[0][2] == False
-    return extract_single_segment_data(edf_path, segments[0], duration, overlap)
+    return extract_single_segment_data(edf_path, segments[0], duration, overlap, use_spectrograms)
 
 
-def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration: int, overlap: int) -> np.ndarray:
+def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration: int, overlap: int, use_spectrograms: bool) -> np.ndarray:
     start, end, _ = segment
     raw_edf = read_raw_edf(edf_path)
     raw_edf = raw_edf.copy().crop(start, end, include_tmax=False)
     epochs = split_epochs(raw_edf, duration, overlap)
-    return extract_data(epochs)
+    return extract_data(epochs, use_spectrograms)
 
 
 def main():
@@ -95,11 +112,11 @@ def main():
                 slices = content["slices"]
                 edf_path = dataset_path.joinpath(patient, edf_filename)
                 if n_seizures == 0:
-                    normal = extract_training_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    normal = extract_training_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS, config.USE_SPECTROGRAMS)
                     f.create_dataset(f"{patient}/train/{n_normals}", data=normal)
                     n_normals += 1
                 else:
-                    tests = extract_test_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    tests = extract_test_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS, config.USE_SPECTROGRAMS)
                     for test in tests:
                         f.create_dataset(f"{patient}/test/{n_anomalies}", data=test)
                         n_anomalies += 1
