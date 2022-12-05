@@ -25,8 +25,8 @@ def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
     return tuple([torch.tensor(x).float() for x in Xs])
 
 
-def preprocess_data(X: np.ndarray) -> np.ndarray:
-    return X.mean(axis=1)
+def preprocess_data(X: np.ndarray, axis=1) -> np.ndarray:
+    return X.mean(axis=axis)
 
 
 def load_patient_names(dataset_path) -> List[str]:
@@ -34,9 +34,12 @@ def load_patient_names(dataset_path) -> List[str]:
         return list(f.keys())
 
 
-def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]], Optional[Tuple[np.ndarray]]]:
+def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]],
+                                                                                                     Optional[np.ndarray],
+                                                                                                     Optional[np.ndarray]]:
     X_train = None
-    X_test = None
+    X_test_normal = None
+    X_test_ictal = None
     with h5py.File(dataset_path) as f:
         if load_train:
             print("Loading training data... ", end=" ")
@@ -55,15 +58,15 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
         if load_test:
             print("Loading test data... ", end=" ")
             if preprocess:
-                X_test_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/test"].values())  # type: ignore
+                X_test_normal_generator = (preprocess_data(x[:], axis=0) for x in f[f"{patient_name}/test/normal"])  # type: ignore
+                X_test_ictal_generator = (preprocess_data(x[:], axis=0) for x in f[f"{patient_name}/test/ictal"])  # type: ignore
             else:
-                X_test_generator = (x[:] for x in f[f"{patient_name}/test"].values())  # type: ignore
-            if config.PARTIAL_TESTING == 0:
-                X_test = tuple(X_test_generator)
-            else:
-                X_test = tuple(islice(X_test_generator, config.PARTIAL_TESTING))
+                X_test_normal_generator = (x[:] for x in f[f"{patient_name}/test/normal"])  # type: ignore
+                X_test_ictal_generator = (x[:] for x in f[f"{patient_name}/test/ictal"])  # type: ignore
+            X_test_normal = np.array(tuple(X_test_normal_generator))
+            X_test_ictal = np.array(tuple(X_test_ictal_generator))
             print(f'DONE')
-            print(f"Testing recordings: {len(X_test)}")
-            print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
+            print(f"Test normal recordings: {len(X_test_normal)}")
+            print(f"Test ictal recordings: {len(X_test_ictal)}")
 
-    return X_train, X_test
+    return X_train, X_test_normal, X_test_ictal

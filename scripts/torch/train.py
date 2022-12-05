@@ -12,7 +12,7 @@ def train(patient_name):
     if (patient_dirpath/"complete").exists():
         print(f"Patient {patient_name} already trained")
         return
-    X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
+    X_normal, _, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
     if not X_normal:
         raise ValueError("No training data found")
     X_train, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)

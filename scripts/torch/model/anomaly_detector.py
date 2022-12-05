@@ -35,7 +35,7 @@ class AnomalyDetector:
         else:
             n_channels = None
             sample_length = X_train.shape[1]
-        self.model = Autoencoder(sample_length, config.N_SUBWINDOWS, n_channels, use_convolution=self.use_convolution)
+        self.model = Autoencoder(sample_length, config.N_SUBWINDOWS, config.ENCODING_DIM, n_channels, use_convolution=self.use_convolution)
         self.model.train_model(X_train, X_val, n_epochs=n_epochs, batch_size=batch_size, dirpath=dirpath.joinpath(
             self.model_dirname), learning_rate=learning_rate, plot_result=plot_result)
 

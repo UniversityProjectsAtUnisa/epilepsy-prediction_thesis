@@ -38,21 +38,16 @@ def extract_slices(edf_path: pathlib.Path, summary: str):
     end_sec = 0
     for i in range(n_seizures):
         start_sec = int(re.search(f"Seizure(?: {i+1})? Start Time:\s*([0-9]*) seconds", file_text).group(1))  # type: ignore
-
-        if i == 0:
-            if start_sec - end_sec > config.PREICTAL_SECONDS:
-                useful_slices.append((end_sec, start_sec, True))
-        elif start_sec - end_sec > config.PREICTAL_SECONDS + config.POSTICTAL_SECONDS:
-            useful_slices.append((end_sec + config.POSTICTAL_SECONDS, start_sec, True))
+        useful_slices.append((end_sec, start_sec, False))
 
         end_sec = int(re.search(f"Seizure(?: {i+1})? End Time:\s*([0-9]*) seconds", file_text).group(1))  # type: ignore
         assert end_sec > start_sec
+        useful_slices.append((start_sec, end_sec, True))
 
     X = extract_data(edf_path)
     end_sample = X.shape[1] // config.SAMPLING_FREQUENCY
 
-    if end_sec + config.POSTICTAL_SECONDS < end_sample:
-        useful_slices.append((end_sec+config.POSTICTAL_SECONDS, end_sample, False))
+    useful_slices.append((end_sec, end_sample, False))
 
     if not useful_slices:
         return None

@@ -1,7 +1,7 @@
 import copy
 import json
 import pathlib
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import config
 import h5py
@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from scipy import signal
 import cv2
+from utils import ResizableH5Dataset
 
 
 def other_files(output_path, *filter_out):
@@ -69,13 +70,19 @@ def adjust_training_segment_duration(segment: List, duration: int, overlap: int)
     return segment
 
 
-def extract_test_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int, use_spectrograms: bool = False) -> List[np.ndarray]:
-    res = []
-    for segment in (s for s in segments if s[2] == True):
+def extract_test_data(edf_path: pathlib.Path, segments: List[List],
+                      duration: int, overlap: int, use_spectrograms: bool = False) -> Tuple[List[np.ndarray],
+                                                                                            List[np.ndarray]]:
+    normal = []
+    ictal = []
+    for segment in segments:
         segment = adjust_training_segment_duration(segment, duration, overlap)
         data = extract_single_segment_data(edf_path, segment, duration, overlap, use_spectrograms)
-        res.append(data)
-    return res
+        if segment[2]:
+            ictal.append(data)
+        else:
+            normal.append(data)
+    return normal, ictal
 
 
 def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int, use_spectrograms: bool = False) -> np.ndarray:
@@ -102,9 +109,14 @@ def main():
 
     slices_metadata = load_slices_metadata(output_path)
     for patient, patient_slices in tqdm(slices_metadata.items(), desc="Patients"):
+        if patient != "chb15":
+            continue
         n_normals = 0
-        n_anomalies = 0
+        n_files = 0
+
         with h5py.File(output_path.joinpath(config.H5_FILENAME), "a") as f:
+            normal_test_dataset = ResizableH5Dataset(f"{patient}/test/normal")
+            ictal_test_dataset = ResizableH5Dataset(f"{patient}/test/ictal")
             for edf_filename, content in tqdm(patient_slices.items(), desc=f"{patient}", leave=False):
                 if edf_filename in config.DISCARDED_EDFS:
                     continue
@@ -116,10 +128,12 @@ def main():
                     f.create_dataset(f"{patient}/train/{n_normals}", data=normal)
                     n_normals += 1
                 else:
-                    tests = extract_test_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS, config.USE_SPECTROGRAMS)
-                    for test in tests:
-                        f.create_dataset(f"{patient}/test/{n_anomalies}", data=test)
-                        n_anomalies += 1
+                    normal, ictal = extract_test_data(edf_path, slices, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS, config.USE_SPECTROGRAMS)
+                    for test in normal:
+                        normal_test_dataset.append_data(f, data=test)
+                    for test in ictal:
+                        ictal_test_dataset.append_data(f, data=test)
+                    n_files += 1
 
 
 if __name__ == '__main__':

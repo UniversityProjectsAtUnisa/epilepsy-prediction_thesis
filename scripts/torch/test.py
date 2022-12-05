@@ -6,6 +6,7 @@ import torch_config as config
 from model.anomaly_detector import AnomalyDetector
 from model.autoencoder import Autoencoder
 from utils.gpu_utils import device_context
+from skimage.filters.thresholding import threshold_otsu
 
 import numpy as np
 import math
@@ -52,17 +53,11 @@ def print_sample_evaluations(preds, consecutive_windows=1):
     print(f"Average time left: {average_time_left} seconds")
 
 
-def evaluate(preds, preictal_seconds, window_size_seconds, window_overlap_seconds):
-    n_positive_windows = math.ceil(preictal_seconds // (window_size_seconds - window_overlap_seconds))
+def evaluate(normal_preds, ictal_preds):
     metrics = {}
-    metrics['seizures'] = len(preds)
-    metrics['undetected%'] = 100*qm.undetected_predictions(preds)
-    metrics['pred%'] = 100*qm.prediction_accuracy(preds, n_positive_windows)
-    metrics['spec%'] = 100*qm.specificity(preds, n_positive_windows)
-    metrics['APT (s)'], metrics['mPT (s)'], metrics['MPT (s)'] = qm.prediction_seconds_before_seizure(preds, window_size_seconds, window_overlap_seconds)
-    metrics['PPV (%)'] = 100*qm.ppv(preds, n_positive_windows)
-    metrics['BPPV (%)'] = 100*qm.bppv(preds, n_positive_windows)
-    metrics['Imb. (%)'] = 100*qm.imbalanceness(preds, n_positive_windows)
+    metrics["normal_accuracy"] = 100*float(sum(normal_preds)/len(normal_preds))
+    metrics["ictal_accuracy"] = 100*float(sum(ictal_preds)/len(ictal_preds))
+    metrics['Imb. (%)'] = 100*float(len(ictal_preds)/(len(normal_preds)+len(ictal_preds)))
     return metrics
 
 
@@ -76,21 +71,21 @@ def main():
         patient_names = sorted(load_patient_names(config.H5_FILEPATH))
 
     percentiles = np.linspace(95, 100, 11, endpoint=True)
-    metrics_df = {perc: pd.DataFrame(columns=config.METRIC_NAMES) for perc in percentiles}
+    metrics_df = {perc: pd.DataFrame(columns=['normal_accuracy', 'ictal_accuracy', 'Imb. (%)']) for perc in percentiles}
+    otsu_df = pd.DataFrame(columns=['normal_accuracy', 'ictal_accuracy', 'Imb. (%)'])
 
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_test = load_data(config.H5_FILEPATH, patient_name, preprocess=not config.USE_CONVOLUTION)
+        X_normal, X_test_normal, X_test_ictal = load_data(config.H5_FILEPATH, patient_name, preprocess=not config.USE_CONVOLUTION)
         if not X_normal:
             raise ValueError("No training data found")
         _, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
 
-        if X_test is None:
+        if X_test_normal is None or X_test_ictal is None:
             raise ValueError("No test data found")
 
-        X_val, = convert_to_tensor(X_val)
-        X_test = convert_to_tensor(*X_test)
+        X_val, X_test_normal, X_test_ictal = convert_to_tensor(X_val, X_test_normal, X_test_ictal)
 
         history = History.load(patient_dirpath/AnomalyDetector.model_dirname/Autoencoder.history_filename)
         history_plot = pf.plot_train_val_losses(history.train, history.val)
@@ -98,18 +93,29 @@ def main():
 
         with device_context:
             model = AnomalyDetector.load(patient_dirpath)
+            losses_val = model.model.calculate_losses(X_val)  # type: ignore
             for perc in percentiles:
-                losses_val = model.model.calculate_losses(X_val)  # type: ignore
                 model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
-                preds = tuple(model.predict(x) for x in X_test)
+                normal_preds = model.predict(X_test_normal)
+                ictal_preds = model.predict(X_test_ictal)
 
-                metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                metrics_dict = evaluate(normal_preds, ictal_preds)
                 new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
                 metrics_df[perc] = pd.concat([metrics_df[perc], new_metrics_df])
+            # Otsu's method
+            model.threshold.threshold = threshold_otsu(np.array(losses_val))  # type: ignore
+            normal_preds = model.predict(X_test_normal)
+            ictal_preds = model.predict(X_test_ictal)
+
+            metrics_dict = evaluate(normal_preds, ictal_preds)
+            new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
+            otsu_df = pd.concat([otsu_df, new_metrics_df])
+
         print()
 
     for k, m in metrics_df.items():
-        m.to_csv(dirpath.joinpath(f"{k}_{config.METRICS_FILENAME}"))
+        m.round(2).to_csv(dirpath.joinpath(f"{k}_{config.METRICS_FILENAME}"))
+    otsu_df.round(2).to_csv(dirpath.joinpath(f"otsu_{config.METRICS_FILENAME}"))
 
 
 if __name__ == '__main__':

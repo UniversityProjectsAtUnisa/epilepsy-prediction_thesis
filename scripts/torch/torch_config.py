@@ -23,6 +23,7 @@ CUDA_NAME = get_envvar("CUDA_NAME", "cuda")
 
 RANDOM_STATE = int(get_envvar('RANDOM_STATE'))
 N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS'))
+ENCODING_DIM = int(get_envvar('ENCODING_DIM'))
 
 LEARNING_RATE = float(get_envvar('LEARNING_RATE'))
 N_EPOCHS = int(get_envvar('N_EPOCHS'))
