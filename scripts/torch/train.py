@@ -3,6 +3,8 @@ from data_functions import convert_to_tensor, load_data, split_data, load_patien
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 from multiprocessing import Pool
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 def train(patient_name):
@@ -12,17 +14,21 @@ def train(patient_name):
     if (patient_dirpath/"complete").exists():
         print(f"Patient {patient_name} already trained")
         return
-    X_normal, _, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
+    X_normal, _, X_test_ictal = load_data(config.H5_FILEPATH, patient_name, load_test=True, preprocess=not config.USE_CONVOLUTION)
     if not X_normal:
         raise ValueError("No training data found")
+
+    # X_normal = np.concatenate([*X_normal, X_test_normal])
     X_train, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
+    # X_train, X_val = train_test_split(X_normal, train_size=0.8, random_state=config.RANDOM_STATE)
 
     # Convert to tensor
 
     with device_context:
-        X_train, X_val = convert_to_tensor(X_train, X_val)
+        X_train, X_val, X_test_ictal = convert_to_tensor(X_train, X_val, X_test_ictal)  # type: ignore
         model = AnomalyDetector(use_convolution=config.USE_CONVOLUTION)
-        model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE, dirpath=patient_dirpath, learning_rate=config.LEARNING_RATE)
+        model.train(X_train, X_val, X_test_ictal, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
+                    dirpath=patient_dirpath, learning_rate=config.LEARNING_RATE)
 
     model.save(patient_dirpath)
     open(patient_dirpath/"complete", "w").close()

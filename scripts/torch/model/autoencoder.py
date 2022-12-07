@@ -69,7 +69,7 @@ class Autoencoder(nn.Module):
             losses = losses.cpu()
         return X_pred, losses
 
-    def train_model(self, X_train, X_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
+    def train_model(self, X_train, X_val, X_test, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-3, plot_result=False):
 
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         criterion = nn.MSELoss()
@@ -82,14 +82,14 @@ class Autoencoder(nn.Module):
         print(f"Training started: {start_time}")
         for epoch in range(1, n_epochs + 1):
 
-            train_losses, val_losses = [], []
+            train_losses, val_losses, test_losses = [], [], []
 
             self.train()
 
             for seq_true in DataLoader(X_train, batch_size=batch_size, shuffle=True, pin_memory=not X_train.is_cuda, generator=torch.Generator(
                     device=device_context.device)):
-                seq_true = seq_true.to(device_context.device)
                 optimizer.zero_grad()
+                seq_true = seq_true.to(device_context.device)
                 seq_pred = self(seq_true)
                 loss = criterion(seq_pred, seq_true)
                 loss.backward()
@@ -104,8 +104,14 @@ class Autoencoder(nn.Module):
                 loss = criterion(seq_pred, seq_true)
                 val_losses.append(loss.item())
 
+                seq_true = X_test.to(device_context.device)
+                seq_pred = self(seq_true)
+                loss = criterion(seq_pred, seq_true)
+                test_losses.append(loss.item())
+
             train_loss = np.mean(train_losses)
             val_loss = np.mean(val_losses)
+            test_loss = np.mean(test_losses)
 
             history.add(train_loss, val_loss)
 
@@ -118,7 +124,7 @@ class Autoencoder(nn.Module):
 
             # print current time in format HH:MM:SS
             end_time = time.strftime('%H:%M:%S', time.localtime(time.time()))
-            print(f'{epoch}/{n_epochs}, time: {end_time}, train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}')
+            print(f'{epoch}/{n_epochs}, time: {end_time}, train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}, test_loss: {test_loss:.4f}')
 
         self.load_state_dict(best_model_wts)
         return history
