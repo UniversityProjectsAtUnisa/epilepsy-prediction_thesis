@@ -11,9 +11,9 @@ from utils.gpu_utils import device_context
 
 from .helpers import plotfunction as pf
 from .helpers.history import History
-from .modules.conv_decoder import ConvDecoder
-from .modules.conv_encoder import ConvEncoder
-from .modules.lstm_autoencoder import LSTMAutoencoder
+from .modules.lstm.conv_decoder import ConvDecoder
+from .modules.lstm.conv_encoder import ConvEncoder
+from .modules.lstm.lstm_autoencoder import LSTMAutoencoder
 
 
 class Autoencoder(nn.Module):

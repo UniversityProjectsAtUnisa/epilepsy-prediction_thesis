@@ -1,6 +1,6 @@
 from torch import nn
-from .lstm.lstm_encoder import LSTMEncoder
-from .lstm.lstm_decoder import LSTMDecoder
+from .lstm_encoder import LSTMEncoder
+from .lstm_decoder import LSTMDecoder
 
 
 class LSTMAutoencoder(nn.Module):
