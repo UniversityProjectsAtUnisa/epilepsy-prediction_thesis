@@ -11,6 +11,7 @@ from tqdm import tqdm
 from scipy import signal
 import cv2
 from utils import ResizableH5Dataset
+from feature_extraction import featureExtraction
 
 
 def other_files(output_path, *filter_out):
@@ -49,18 +50,22 @@ def to_spectrogram(data: np.ndarray):
 
 def extract_data(raw: mne.io.Raw, use_spectrograms: bool) -> np.ndarray:
     raw = raw.load_data()
-    data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
-    data = abs(np.diff(data, prepend=data[:, :, 0].reshape(data.shape[0], data.shape[1], 1)))
-    if use_spectrograms:
-        data = to_spectrogram(data)
+    data = raw.get_data().astype(np.float32) * 1e6  # type: ignore
+
+    data = np.array([featureExtraction(x, config.SAMPLING_FREQUENCY, exp="AVERAGE") for x in data])
+
+    # data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
+    # data = abs(np.diff(data, prepend=data[:, :, 0].reshape(data.shape[0], data.shape[1], 1)))
+    # if use_spectrograms:
+    #     data = to_spectrogram(data)
     return data
 
 
-def split_epochs(edf: mne.io.Raw, duration: int, overlap: int) -> mne.io.Raw:
+def split_epochs(edf: mne.io.Raw, duration: float, overlap: float) -> mne.io.Raw:
     return mne.make_fixed_length_epochs(edf, duration=duration, overlap=overlap)  # type: ignore
 
 
-def adjust_training_segment_duration(segment: List, duration: int, overlap: int):
+def adjust_training_segment_duration(segment: List, duration: float, overlap: float):
     start, end, _ = segment
     segment_duration = end - start
     effective_window_size = duration - overlap
@@ -71,8 +76,8 @@ def adjust_training_segment_duration(segment: List, duration: int, overlap: int)
 
 
 def extract_test_data(edf_path: pathlib.Path, segments: List[List],
-                      duration: int, overlap: int, use_spectrograms: bool = False) -> Tuple[List[np.ndarray],
-                                                                                            List[np.ndarray]]:
+                      duration: float, overlap: float, use_spectrograms: bool = False) -> Tuple[List[np.ndarray],
+                                                                                                List[np.ndarray]]:
     normal = []
     ictal = []
     for segment in segments:
@@ -85,12 +90,12 @@ def extract_test_data(edf_path: pathlib.Path, segments: List[List],
     return normal, ictal
 
 
-def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: int, overlap: int, use_spectrograms: bool = False) -> np.ndarray:
+def extract_training_data(edf_path: pathlib.Path, segments: List[List], duration: float, overlap: float, use_spectrograms: bool = False) -> np.ndarray:
     assert len(segments) == 1 and segments[0][2] == False
     return extract_single_segment_data(edf_path, segments[0], duration, overlap, use_spectrograms)
 
 
-def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration: int, overlap: int, use_spectrograms: bool) -> np.ndarray:
+def extract_single_segment_data(edf_path: pathlib.Path, segment: List, duration: float, overlap: float, use_spectrograms: bool) -> np.ndarray:
     start, end, _ = segment
     raw_edf = read_raw_edf(edf_path)
     raw_edf = raw_edf.copy().crop(start, end, include_tmax=False)

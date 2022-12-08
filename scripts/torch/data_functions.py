@@ -6,6 +6,8 @@ from sklearn.model_selection import train_test_split
 import torch_config as config
 from typing import List, Tuple, Optional
 from itertools import islice
+from tqdm import tqdm
+from sklearn.preprocessing import StandardScaler
 
 
 def is_consecutive(l):
@@ -26,7 +28,9 @@ def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
 
 
 def preprocess_data(X: np.ndarray, axis=1) -> np.ndarray:
-    return X.mean(axis=axis)
+    # return np.array([featureExtraction(x, 256) for x in tqdm(X, leave=False)])
+    # return X.mean(axis=axis)
+    return X
 
 
 def load_patient_names(dataset_path) -> List[str]:
@@ -37,6 +41,7 @@ def load_patient_names(dataset_path) -> List[str]:
 def load_data(dataset_path, patient_name, load_train=True, load_test=True, preprocess=True) -> Tuple[Optional[Tuple[np.ndarray]],
                                                                                                      Optional[np.ndarray],
                                                                                                      Optional[np.ndarray]]:
+    sc = StandardScaler()
     X_train = None
     X_test_normal = None
     X_test_ictal = None
@@ -51,6 +56,12 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
                 X_train = tuple(X_train_generator)
             else:
                 X_train = tuple(islice(X_train_generator, config.PARTIAL_TRAINING))
+
+            aggregate = np.concatenate([x for x in X_train if np.inf not in x])
+            sc.fit(aggregate)
+            X_train = tuple(sc.transform(x) for x in X_train if not np.isnan(x).any())
+            X_train = tuple(x[:x.shape[0]-(x.shape[0] % 2), :].reshape(-1, x.shape[1]*2) for x in X_train if np.inf not in x)
+
             print("DONE")
             print(f"Training recordings: {len(X_train)}")
             print(f"Total training samples: {sum(x.shape[0] for x in X_train)}")
@@ -63,8 +74,14 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
             else:
                 X_test_normal_generator = (x[:] for x in f[f"{patient_name}/test/normal"])  # type: ignore
                 X_test_ictal_generator = (x[:] for x in f[f"{patient_name}/test/ictal"])  # type: ignore
-            X_test_normal = np.array(tuple(X_test_normal_generator))
+            X_test_normal = np.array(tuple(x for x in X_test_normal_generator if np.inf not in x))
             X_test_ictal = np.array(tuple(X_test_ictal_generator))
+
+            X_test_normal = sc.transform(X_test_normal)
+            X_test_ictal = sc.transform(X_test_ictal)
+
+            X_test_normal = X_test_normal[:X_test_normal.shape[0]-(X_test_normal.shape[0] % 2), :].reshape(-1, X_test_normal.shape[1]*2)
+            X_test_ictal = X_test_ictal[:X_test_ictal.shape[0]-X_test_ictal.shape[0] % 2, :].reshape(-1, X_test_ictal.shape[1]*2)
             print(f'DONE')
             print(f"Test normal recordings: {len(X_test_normal)}")
             print(f"Test ictal recordings: {len(X_test_ictal)}")
