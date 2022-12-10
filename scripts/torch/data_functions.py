@@ -26,7 +26,8 @@ def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:
 
 
 def preprocess_data(X: np.ndarray, axis=1) -> np.ndarray:
-    return X.mean(axis=axis)
+    return X
+    # return X.mean(axis=axis)
 
 
 def load_patient_names(dataset_path) -> List[str]:

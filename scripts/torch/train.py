@@ -26,7 +26,7 @@ def train(patient_name):
 
     with device_context:
         X_train, X_val, X_test_ictal = convert_to_tensor(X_train, X_val, X_test_ictal)  # type: ignore
-        model = AnomalyDetector(use_convolution=config.USE_CONVOLUTION)
+        model = AnomalyDetector()
         model.train(X_train, X_val, X_test_ictal, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
                     dirpath=patient_dirpath, learning_rate=config.LEARNING_RATE)
 

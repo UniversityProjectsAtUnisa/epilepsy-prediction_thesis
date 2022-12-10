@@ -11,9 +11,9 @@ from utils.gpu_utils import device_context
 
 from .helpers import plotfunction as pf
 from .helpers.history import History
-from .modules.lstm.conv_decoder import ConvDecoder
-from .modules.lstm.conv_encoder import ConvEncoder
-from .modules.lstm.lstm_autoencoder import LSTMAutoencoder
+from .modules.conv.conv_decoder import ConvDecoder
+from .modules.conv.conv_encoder import ConvEncoder
+from .modules.conv.conv_autoencoder import ConvAutoencoder
 
 
 class Autoencoder(nn.Module):
@@ -21,29 +21,14 @@ class Autoencoder(nn.Module):
     model_filename = 'model.pth'
     state_dict_filename = 'checkpoint.pth'
 
-    def __init__(self, sample_length, n_subwindows, encoding_dim, n_channels=None, use_convolution=False):
+    def __init__(self, sample_length, sample_freqs, n_channels):
         super(Autoencoder, self).__init__()
-        if use_convolution and n_channels is None:
-            raise ValueError("n_channels must be specified when using convolution")
-        self.n_subwindows = n_subwindows
-        self.use_convolution = use_convolution
-
-        len_subwindows = sample_length//n_subwindows
-        if use_convolution:
-            self.conv_encoder = ConvEncoder(sample_length=sample_length, n_channels=n_channels)
-            self.conv_decoder = ConvDecoder(sample_length=sample_length, n_channels=n_channels)
-        self.lstm_autoencoder = LSTMAutoencoder(seq_len=n_subwindows, n_features=len_subwindows, encoding_dim=encoding_dim)
+        self.autoencoder = ConvAutoencoder(sample_length, sample_freqs, n_channels)
 
     def forward(self, x):
-        if self.use_convolution:
-            x = self.conv_encoder(x)
-        else:
-            x = x.reshape(x.shape[0], self.n_subwindows, -1)
-        x = self.lstm_autoencoder(x)
-        if self.use_convolution:
-            x = self.conv_decoder(x)
-        else:
-            x = x.reshape(x.shape[0], -1)
+        x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3])
+        x = self.autoencoder(x)
+        x = x.reshape(x.shape[0], x.shape[2], x.shape[3], x.shape[4])
         return x
 
     def predict(self, X):
