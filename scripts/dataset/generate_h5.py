@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from utils import ResizableH5Dataset
 from spectrogram import to_spectrogram
+from scipy import signal
 
 
 def other_files(output_path, *filter_out):
@@ -29,17 +30,33 @@ def read_raw_edf(edf_path: pathlib.Path) -> mne.io.Raw:
         new_names = {"T8-P8-0": "T8-P8"}
         raw_edf.rename_channels(new_names)
 
-    raw_edf.reorder_channels(config.USEFUL_CHANNELS)
+    raw_edf = raw_edf.reorder_channels(config.USEFUL_CHANNELS)
     return raw_edf  # type: ignore
 
 
 def extract_data(raw: mne.io.Raw, use_spectrograms: bool) -> np.ndarray:
     raw = raw.load_data()
+    # if use_spectrograms:
+    #     data = raw.get_data().astype(np.float32)
+    #     data = to_spectrogram(data)
+    # else:
     data = raw.filter(8, 13).get_data().astype(np.float32) * 1e6  # type: ignore
     data = abs(np.diff(data, prepend=data[:, :, 0].reshape(data.shape[0], data.shape[1], 1)))
-    if use_spectrograms:
-        data = to_spectrogram(data)
+    data = to_spectrogram2(data)
     return data
+
+
+def to_spectrogram2(data: np.ndarray):
+    new_data = []
+    for window in data:
+        new_window = []
+        for channel in window:
+            _, _, Pxx = signal.spectrogram(channel, nfft=256, fs=256, noverlap=0)
+            spect = cv2.flip(np.uint8(10*np.log10(Pxx)), 0)  # type: ignore
+            new_window.append(spect[-40:])
+
+        new_data.append(np.array(new_window))
+    return np.array(new_data)
 
 
 def split_epochs(edf: mne.io.Raw, duration: int, overlap: int) -> mne.io.Raw:
