@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 # directory='/home/tfgadmin/enri/input_features/'
-directory = Path('/media/marco741/Archive/Datasets/paperautoencoder_ictal_1size/300')
-H5_FILENAME = 'chb15_dataset.h5'
-PATIENT_ID = 'chb15'
+directory = Path('/media/marco741/Archive/Datasets/EEG data')
+# H5_FILENAME = 'chb15_dataset.h5'
+# PATIENT_ID = 'chb15'
 # directory=''
 
 x_name_normal = 'normal_1_0_data_x.npy'
@@ -24,8 +24,8 @@ PLOT_RESULT = True
 # KFOLD_MODE=True
 KFOLD_MODE = False  # train_test_split
 
-MODEL_ACTION = 'LOAD'
 # MODEL_ACTION = 'TRAIN'
+MODEL_ACTION = 'LOAD'
 
 LIST_CONF_CHANNELS = [3]  # 1=resta canal 6 y 10   2=concatenacion    3=media aritmetica
 LIST_N_EPOCHS = [150]
@@ -46,21 +46,18 @@ for CONF_CHANNELS in LIST_CONF_CHANNELS:
                 for SEQL in LIST_SEQL:
 
                     # cargamos datos normales
-                    X_normal, X_test_normal, _ = load_data(directory/H5_FILENAME, PATIENT_ID, load_test=True)
-                    if X_normal is None or X_test_normal is None:
-                        raise ValueError("No training data found")
-                    X_normal = np.concatenate([*X_normal, X_test_normal])
-                    X_normal = X_normal.reshape(-1, 2, 128)
+                    data_x_normal, data_y_normal = load_data(directory, x_name_normal, y_name_normal, conf_channel=CONF_CHANNELS, pandas=False, seql=SEQL)
 
                     # subsampling
-                    data_x_normal = X_normal[:10000]
+                    data_x_normal = data_x_normal[:10000]
+                    data_y_normal = data_y_normal[:10000]
 
                     if MODEL_ACTION == 'LOAD':  # cargamos datos anómalos para testear
-                        _, _, X_test_ictal = load_data(directory/H5_FILENAME, PATIENT_ID, load_train=False)
-                        if X_test_ictal is None:
-                            raise ValueError("No training data found")
-                        X_test_ictal = X_test_ictal.reshape(-1, 2, 128)
-                        test_seizure, _, _ = convert_to_tensor(X_test_ictal)
+                        data_x_seizure, data_y_seizure = load_data(directory, x_name_seizure, y_name_seizure,
+                                                                   conf_channel=CONF_CHANNELS, pandas=False, seql=SEQL)
+                        data_x_seizure = data_x_seizure[np.unique(np.where(data_y_seizure == 1)[0]).tolist()]
+                        data_y_seizure = data_y_seizure[np.unique(np.where(data_y_seizure == 1)[0]).tolist()]
+                        test_seizure, _, _ = convert_to_tensor(data_x_seizure)
 
                     kf = KFold(n_splits=N_KFOLD)
 
