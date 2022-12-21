@@ -12,6 +12,8 @@ from scipy import signal
 import cv2
 import pandas as pd
 from collections import defaultdict
+import warnings
+from tables import NaturalNameWarning
 
 
 def load_paper_labels(filepath: pathlib.Path):
@@ -21,13 +23,12 @@ def load_paper_labels(filepath: pathlib.Path):
     return data_y
 
 
-def load_paper_data(filepath: pathlib.Path):
-    x_data = np.load(filepath, allow_pickle=True)
+def load_paper_data(filepath: pathlib.Path, lazy=False):
+    x_data = np.load(filepath, allow_pickle=True, mmap_mode='r' if lazy else None)
     return x_data
 
 
 def create_normal_datasets(h5_filepath, normal_x_filepath, normal_y_filepath):
-    normal_x = load_paper_data(normal_x_filepath)
     normal_y = load_paper_labels(normal_y_filepath)
 
     patient_idxs = defaultdict(list)
@@ -35,12 +36,13 @@ def create_normal_datasets(h5_filepath, normal_x_filepath, normal_y_filepath):
     for patient in patients:
         patient_normal_filenames = normal_y[normal_y["name"] == patient]['filename'].unique()
         for filename in patient_normal_filenames:
-            idxs = normal_y.index[normal_y['filename'] == filename]
-            patient_idxs[patient].append(idxs)
+            idx = normal_y.index[normal_y['filename'] == filename]
+            patient_idxs[patient].append(idx)
 
-    for patient, idxs in patient_idxs.items():
+    normal_x = load_paper_data(normal_x_filepath, lazy=True)
+    for patient, idxs in tqdm(patient_idxs.items(), desc="Normal data: Patients"):
         n_normals = 0
-        for idx in idxs:
+        for idx in tqdm(idxs, desc=f"{patient}", leave=False):
             with h5py.File(h5_filepath, 'a') as f:
                 f.create_dataset(f"{patient}/train/X/{n_normals}", data=normal_x[idx])
             normal_y.iloc[idx].to_hdf(str(h5_filepath), key=f"{patient}/train/y/{n_normals}", mode="a")
@@ -49,7 +51,6 @@ def create_normal_datasets(h5_filepath, normal_x_filepath, normal_y_filepath):
 
 
 def create_seizure_datasets(h5_filepath, seizure_x_filepath, seizure_y_filepath):
-    seizure_x = load_paper_data(seizure_x_filepath)
     seizure_y = load_paper_labels(seizure_y_filepath)
 
     patient_idxs = defaultdict(list)
@@ -62,19 +63,19 @@ def create_seizure_datasets(h5_filepath, seizure_x_filepath, seizure_y_filepath)
 
             current_sequence_start = min(filename_seizure_y.index[filename_seizure_y['pre1'] == 0])
             current_sequence_end = min(filename_seizure_y.index[filename_seizure_y['pre1'] == 1])
-            if current_sequence_end >= config.PREICTAL_SECONDS:
+            if current_sequence_end - current_sequence_start >= config.PREICTAL_SECONDS:
                 patient_idxs[patient].append(np.arange(current_sequence_start, current_sequence_end))
-                # TODO: controllare l'ultimo indice
-            for i in range(2, n_seizures):
+            for i in range(2, n_seizures+1):
                 last_sequence_end = max(filename_seizure_y.index[filename_seizure_y['pre1'] == i-1]) + 1
                 current_sequence_start = last_sequence_end + config.POSTICTAL_SECONDS
                 current_sequence_end = min(filename_seizure_y.index[filename_seizure_y['pre1'] == i])
                 if current_sequence_end - current_sequence_start >= config.PREICTAL_SECONDS:
                     patient_idxs[patient].append(np.arange(current_sequence_start, current_sequence_end))
 
-    for patient, idxs in patient_idxs.items():
+    seizure_x = load_paper_data(seizure_x_filepath, lazy=True)
+    for patient, idxs in tqdm(patient_idxs.items(), desc="Seizure data: Patients"):
         n_seizures = 0
-        for idx in idxs:
+        for idx in tqdm(idxs, desc=f"{patient}", leave=False):
             with h5py.File(h5_filepath, 'a') as f:
                 f.create_dataset(f"{patient}/test/X/{n_seizures}", data=seizure_x[idx])
             seizure_y.iloc[idx].to_hdf(str(h5_filepath), key=f"{patient}/test/y/{n_seizures}", mode="a")
@@ -83,12 +84,14 @@ def create_seizure_datasets(h5_filepath, seizure_x_filepath, seizure_y_filepath)
 
 
 def main():
+    warnings.filterwarnings('ignore', category=NaturalNameWarning)
+
     output_path = config.H5_DIRPATH
     h5_filepath = config.H5_FILEPATH
     if h5_filepath.exists():
         raise FileExistsError(f"{h5_filepath} already exists. Delete it first.")
 
-    paper_dirpath = pathlib.Path('/media/HDD/Unisa/Datasets/EEG data')
+    paper_dirpath = config.NUMPY_DATASET_PATH
     normal_x_filename = 'normal_1_0_data_x.npy'
     normal_y_filename = "normal_1_0_data_y.npy"
     seizure_x_filename = 'seizure_1_0_data_x.npy'

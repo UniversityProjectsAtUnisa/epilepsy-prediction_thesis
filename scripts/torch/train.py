@@ -1,5 +1,5 @@
 import torch_config as config
-from data_functions import convert_to_tensor, load_data, split_data, load_patient_names
+from data_functions import convert_to_tensor, load_numpy_dataset, split_data, load_patient_names
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 from multiprocessing import Pool
@@ -12,7 +12,8 @@ def train(patient_name):
     if (patient_dirpath/"complete").exists():
         print(f"Patient {patient_name} already trained")
         return
-    X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=False, preprocess=not config.USE_CONVOLUTION)
+    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=False, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+
     if not X_normal:
         raise ValueError("No training data found")
     X_train, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)

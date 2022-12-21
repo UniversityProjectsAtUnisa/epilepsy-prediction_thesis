@@ -7,6 +7,7 @@ load_dotenv()
 
 # ENVIRONMENT VARIABLES
 DATASET_PATH = pathlib.Path(get_envvar('DATASET_PATH'))
+NUMPY_DATASET_PATH = pathlib.Path(get_envvar('NUMPY_DATASET_PATH'))
 PREICTAL_SECONDS = int(get_envvar('PREICTAL_SECONDS'))
 POSTICTAL_SECONDS = int(get_envvar('POSTICTAL_SECONDS'))
 OUTPUT_PATH = pathlib.Path(get_envvar('OUTPUT_PATH'))

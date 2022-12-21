@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 import torch_config as config
 from typing import List, Tuple, Optional
 from itertools import islice
+import pandas as pd
 
 
 def is_consecutive(l):
@@ -67,3 +68,52 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
             print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
 
     return X_train, X_test
+
+
+def load_x_data(dataset_path, key, n_subwindows, preprocess) -> Tuple[np.ndarray]:
+    x_data = []
+    with h5py.File(dataset_path) as f:
+        for x in f[key].values():  # type: ignore
+            x = x[x.shape[0] % n_subwindows:]
+            if preprocess:
+                x = preprocess_data(x)
+                x = x.reshape(-1, x.shape[-1]*n_subwindows)
+            else:
+                x = np.concatenate(x, -1)
+                x = x.reshape(-1, x.shape[1], x.shape[-1]*n_subwindows)
+            x_data.append(x)
+    return tuple(x_data)
+
+
+def load_y_data(dataset_path, key, n_subwindows) -> Tuple[pd.DataFrame]:
+    with h5py.File(dataset_path) as f:
+        sequence_ids = f[key].keys()  # type: ignore
+    y_data = []
+    for sid in sequence_ids:
+        y = pd.read_hdf(dataset_path, f"{key}/{sid}")
+        y = y[y.shape[0] % n_subwindows:]
+        y_data.append(y)
+    return tuple(y_data)
+
+
+def load_numpy_dataset(
+        dataset_path, patient_name, load_train=True, load_test=True, n_subwindows=2, preprocess=True) -> Tuple[
+        Optional[Tuple[np.ndarray]],
+        Optional[Tuple[np.ndarray]]]:
+    X_train = None
+    X_test = None
+    if load_train:
+        print("Loading training data... ", end=" ")
+        X_train = load_x_data(dataset_path, f"{patient_name}/train/X", n_subwindows, preprocess)
+        print("DONE")
+        print(f"Training recordings: {len(X_train)}")
+        print(f"Total training samples: {sum(x.shape[0] for x in X_train)}")
+
+    if load_test:
+        print("Loading test data... ", end=" ")
+        X_test = load_x_data(dataset_path, f"{patient_name}/test/X", n_subwindows, preprocess)
+        print(f'DONE')
+        print(f"Testing recordings: {len(X_test)}")
+        print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
+
+    return X_train, X_test  # type: ignore

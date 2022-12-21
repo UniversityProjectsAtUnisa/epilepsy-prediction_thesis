@@ -1,4 +1,4 @@
-from data_functions import load_data, convert_to_tensor, load_patient_names, split_data
+from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, split_data
 from evaluation import quality_metrics as qm
 from evaluation import plot_functions as pf
 from model.helpers.history import History
@@ -6,6 +6,8 @@ import torch_config as config
 from model.anomaly_detector import AnomalyDetector
 from model.autoencoder import Autoencoder
 from utils.gpu_utils import device_context
+from skimage.filters.thresholding import threshold_otsu
+
 
 import numpy as np
 import math
@@ -77,11 +79,12 @@ def main():
 
     percentiles = np.linspace(95, 100, 11, endpoint=True)
     metrics_df = {perc: pd.DataFrame(columns=config.METRIC_NAMES) for perc in percentiles}
+    otsu_df = pd.DataFrame(columns=config.METRIC_NAMES)
 
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_test = load_data(config.H5_FILEPATH, patient_name, preprocess=not config.USE_CONVOLUTION)
+        X_normal, X_test = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
         if not X_normal:
             raise ValueError("No training data found")
         _, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
@@ -98,18 +101,29 @@ def main():
 
         with device_context:
             model = AnomalyDetector.load(patient_dirpath)
+            losses_val = model.model.calculate_losses(X_val)  # type: ignore
             for perc in percentiles:
-                losses_val = model.model.calculate_losses(X_val)  # type: ignore
                 model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
                 preds = tuple(model.predict(x) for x in X_test)
+                print(f"Percentile: {perc:.2f}")
+                for i in range(3):
+                    print_sample_evaluations(preds, consecutive_windows=i+1)
+                print()
 
                 metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
                 new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
                 metrics_df[perc] = pd.concat([metrics_df[perc], new_metrics_df])
+            # Otsu's method
+            model.threshold.threshold = threshold_otsu(np.array(losses_val))  # type: ignore
+            preds = tuple(model.predict(x) for x in X_test)
+            metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+            new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
+            otsu_df = pd.concat([otsu_df, new_metrics_df])
         print()
 
     for k, m in metrics_df.items():
         m.to_csv(dirpath.joinpath(f"{k}_{config.METRICS_FILENAME}"))
+    otsu_df.round(2).to_csv(dirpath.joinpath(f"otsu_{config.METRICS_FILENAME}"))
 
 
 if __name__ == '__main__':
