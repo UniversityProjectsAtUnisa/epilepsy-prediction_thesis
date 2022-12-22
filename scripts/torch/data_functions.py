@@ -17,9 +17,10 @@ def is_consecutive(l):
 
 def split_data(X_normal: Tuple[np.ndarray], train_size=0.8, random_state=1):
     print("Splitting data... ", end=" ")
-    X_train, X_val = train_test_split(X_normal, train_size=train_size, random_state=random_state)  # type: ignore
+    X_train, X_test = train_test_split(X_normal, train_size=train_size, random_state=random_state)  # type: ignore
+    X_train, X_val = train_test_split(X_train, train_size=train_size, random_state=random_state)  # type: ignore
     print("DONE")
-    return np.concatenate(X_train), np.concatenate(X_val)
+    return np.concatenate(X_train), np.concatenate(X_val), np.concatenate(X_test)
 
 
 def convert_to_tensor(*Xs: np.ndarray) -> Tuple[torch.Tensor, ...]:

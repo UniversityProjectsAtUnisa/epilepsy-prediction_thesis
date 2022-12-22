@@ -16,8 +16,7 @@ def train(patient_name):
 
     if not X_normal:
         raise ValueError("No training data found")
-    X_train, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
-
+    X_train, X_val, _ = split_data(X_normal, random_state=config.RANDOM_STATE)
     # Convert to tensor
 
     with device_context:
