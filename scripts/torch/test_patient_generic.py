@@ -1,4 +1,4 @@
-from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, nested_kfolds
+from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, patient_generic_kfolds
 from evaluation import quality_metrics as qm
 from evaluation import plot_functions as pf
 import torch_config as config
@@ -50,22 +50,36 @@ def main():
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
-        if not X_normal:
-            raise ValueError("No training data found")
+        other_patients = [p for p in patient_names if p != patient_name]
+
+        X_normals = []
+        for p in other_patients:
+            X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+            if X_normal:
+                X_normals.append(X_normal)
+
+        if not X_normals:
+            raise ValueError("No validation data found")
+
+        X_normal_test, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name,
+                                                        n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+        if not X_normal_test:
+            raise ValueError("No negative test data found")
 
         if not X_anomalies:
-            raise ValueError("No test data found")
+            raise ValueError("No positive test data found")
 
+        X_normal_test = np.concatenate(X_normal_test)
+        X_normal_test, = convert_to_tensor(X_normal_test)
         X_anomalies = convert_to_tensor(*X_anomalies)
         for perc in percentiles:
             foldmetrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
             fold_positive_preds, fold_negative_preds = [], []
-            for ei, ii, (X_train, X_val, X_normal_test) in nested_kfolds(X_normal):
-                fold_name = f"ei_{ei}_ii_{ii}"
+            for i, (X_train, X_val) in patient_generic_kfolds(X_normals):
+                fold_name = f"fold_{i}"
                 fold_dirpath = patient_dirpath/fold_name
 
-                X_val, X_normal_test = convert_to_tensor(X_val, X_normal_test)
+                X_val, = convert_to_tensor(X_val,)
 
                 with device_context:
                     model = AnomalyDetector.load(fold_dirpath)

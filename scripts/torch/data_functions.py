@@ -133,3 +133,11 @@ def nested_kfolds(X: Tuple[np.ndarray], shuffle=False, random_state=None):
             X_val = tuple(X_internal[i] for i in val_idx)
 
             yield ei, ii, (np.concatenate(X_train), np.concatenate(X_val), np.concatenate(X_test))
+
+
+def patient_generic_kfolds(Xs: List[np.ndarray], shuffle=False, random_state=None):
+    kf = KFold(n_splits=min(len(Xs), 5), shuffle=shuffle, random_state=random_state)
+    for i, (train_idx, val_idx) in enumerate(kf.split(Xs)):
+        X_train = [np.concatenate(Xs[k]) for k in train_idx]
+        X_val = [np.concatenate(Xs[k]) for k in val_idx]
+        yield i, (np.concatenate(X_train), np.concatenate(X_val))
