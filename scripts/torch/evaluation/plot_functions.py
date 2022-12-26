@@ -1,5 +1,12 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import pathlib
+
+
+def plot_history(history, dirpath: pathlib.Path):
+    history_plot = plot_train_val_losses(history.train, history.val)
+    history_plot.savefig(str(dirpath))
+    plt.close(history_plot)
 
 
 def plot_train_val_losses(train_losses, val_losses):
