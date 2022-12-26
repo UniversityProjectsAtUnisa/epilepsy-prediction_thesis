@@ -104,7 +104,7 @@ def main():
         X_anomalies = convert_to_tensor(*X_anomalies)
         for perc in percentiles:
             foldmetrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
-            fold_preds = []
+            fold_positive_preds, fold_negative_preds = [], []
             for ei, ii, (X_train, X_val, X_normal_test) in nested_kfolds(X_normal):
                 fold_name = f"ei_{ei}_ii_{ii}"
                 fold_dirpath = patient_dirpath/fold_name
@@ -118,7 +118,8 @@ def main():
                     model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
                     negative_preds = model.predict(X_normal_test)
                     positive_preds = tuple(model.predict(x) for x in X_anomalies)
-                    fold_preds.append(positive_preds)
+                    fold_negative_preds.append(negative_preds)
+                    fold_positive_preds.append(positive_preds)
                     # for i in range(3):
                     #     print_sample_evaluations(preds, consecutive_windows=i+1)
                     # print()
@@ -138,8 +139,11 @@ def main():
                 metrics_df[perc] = pd.concat([metrics_df[perc], average_row])
                 foldmetrics_df.round(1).to_csv(patient_dirpath/f"{perc}_{config.METRICS_FILENAME}")
 
-            plot = pf.plot_cumulative_preds(fold_preds, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-            plot.savefig(str(patient_dirpath/f"{perc}_{config.CUMULATIVE_PREDICTIONS_FILENAME}"))
+            plot = pf.plot_cumulative_positive_preds(fold_positive_preds, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+            plot.savefig(str(patient_dirpath/f"{perc}_positive_{config.CUMULATIVE_PREDICTIONS_FILENAME}"))
+            plt.close(plot)
+            plot = pf.plot_cumulative_negative_preds(fold_negative_preds, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+            plot.savefig(str(patient_dirpath/f"{perc}_negative_{config.CUMULATIVE_PREDICTIONS_FILENAME}"))
             plt.close(plot)
         print()
 
