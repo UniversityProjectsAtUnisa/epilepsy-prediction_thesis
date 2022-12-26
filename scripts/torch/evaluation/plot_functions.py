@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def plot_train_val_losses(train_losses, val_losses):
@@ -9,4 +10,23 @@ def plot_train_val_losses(train_losses, val_losses):
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
     ax.legend()
+    return fig
+
+
+def plot_cumulative_preds(fold_preds, window_size_seconds, window_overlap_seconds):
+    avg_preds = []
+    for i in range(len(fold_preds[0])):
+        avg = np.array([p[i].numpy() for p in fold_preds]).mean(axis=0)
+        avg_preds.append(avg)
+    # equalslength_preds = [np.pad(pred, (max_length - len(pred), 0), "constant") for pred in avg_preds]
+    cum_preds = [np.insert(fp.cumsum(), 0, 0) for fp in avg_preds]
+    standardized_preds = [pred / (len(pred) - 1) for pred in cum_preds]
+    max_length = max(len(pred) for pred in standardized_preds)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    # ax.plot(np.linspace(0, 10, 11), np.linspace(0, 1, 11), label="reference", color="red")
+    for pred in standardized_preds:
+        ax.plot(np.linspace(-max_length * (window_size_seconds - window_overlap_seconds), 0, max_length, endpoint=False)[max_length - len(pred):], pred)
+    ax.set_xlabel("Seconds relative to seizure (s)")
+    ax.set_ylabel("Cumulative positive predictions (%)")
+    # ax.legend()
     return fig

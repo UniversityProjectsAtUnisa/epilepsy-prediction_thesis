@@ -1,4 +1,4 @@
-from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, split_data
+from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, nested_kfolds
 from evaluation import quality_metrics as qm
 from evaluation import plot_functions as pf
 from model.helpers.history import History
@@ -7,6 +7,7 @@ from model.anomaly_detector import AnomalyDetector
 from model.autoencoder import Autoencoder
 from utils.gpu_utils import device_context
 from skimage.filters.thresholding import threshold_otsu
+import matplotlib.pyplot as plt
 
 
 import numpy as np
@@ -16,6 +17,12 @@ import pandas as pd
 
 def get_time_left(windows_left: int):
     return windows_left * (config.WINDOW_SIZE_SECONDS - config.WINDOW_OVERLAP_SECONDS)
+
+
+def average_performances(df, rowname, window_size_seconds, window_overlap_seconds):
+    mean_series = df.mean(axis=0)
+    mean_series["IFP (s)"] = qm.intra_fp_seconds(mean_series["spec%"]/100, window_size_seconds, window_overlap_seconds)
+    return pd.DataFrame(mean_series, columns=[rowname]).T
 
 
 def consecutive_preds(pred, consecutive_windows):
@@ -54,17 +61,21 @@ def print_sample_evaluations(preds, consecutive_windows=1):
     print(f"Average time left: {average_time_left} seconds")
 
 
-def evaluate(preds, preictal_seconds, window_size_seconds, window_overlap_seconds):
-    n_positive_windows = math.ceil(preictal_seconds // (window_size_seconds - window_overlap_seconds))
+def evaluate(positive_preds, negative_preds, n_train_windows, n_val_windows,
+             n_normal_test_windows, window_size_seconds, window_overlap_seconds):
     metrics = {}
-    metrics['seizures'] = len(preds)
-    metrics['undetected%'] = 100*qm.undetected_predictions(preds)
-    metrics['pred%'] = 100*qm.prediction_accuracy(preds, n_positive_windows)
-    metrics['spec%'] = 100*qm.specificity(preds, n_positive_windows)
-    metrics['APT (s)'], metrics['mPT (s)'], metrics['MPT (s)'] = qm.prediction_seconds_before_seizure(preds, window_size_seconds, window_overlap_seconds)
-    metrics['PPV (%)'] = 100*qm.ppv(preds, n_positive_windows)
-    metrics['BPPV (%)'] = 100*qm.bppv(preds, n_positive_windows)
-    metrics['Imb. (%)'] = 100*qm.imbalanceness(preds, n_positive_windows)
+    metrics["train (s)"], metrics["val (s)"], metrics["test_normal (s)"] = qm.normal_files_seconds(
+        n_train_windows, n_val_windows, n_normal_test_windows, window_size_seconds, window_overlap_seconds)
+    metrics['n_seizures'], metrics["ASD (s)"] = qm.seizure_info(positive_preds, window_size_seconds, window_overlap_seconds)
+    # metrics['undetected%'] = 100*qm.undetected_predictions(positive_preds)
+    metrics['pred%'] = 100*qm.prediction_accuracy(positive_preds)
+    metrics['spec%'] = 100*qm.specificity(negative_preds)
+    metrics["IFP (s)"] = qm.intra_fp_seconds(qm.specificity(negative_preds), window_size_seconds, window_overlap_seconds)
+    metrics['APT (s)'], metrics['mPT (s)'], metrics['MPT (s)'] = qm.prediction_seconds_before_seizure(
+        positive_preds, window_size_seconds, window_overlap_seconds)
+    metrics['PPV (%)'] = 100*qm.ppv(positive_preds, negative_preds)
+    metrics['BPPV (%)'] = 100*qm.bppv(positive_preds, negative_preds)
+    metrics['Imb. (%)'] = 100*qm.imbalanceness(positive_preds, negative_preds)
     return metrics
 
 
@@ -77,53 +88,65 @@ def main():
     else:
         patient_names = sorted(load_patient_names(config.H5_FILEPATH))
 
-    percentiles = np.linspace(95, 100, 11, endpoint=True)
+    percentiles = np.linspace(99.8, 100, 3, endpoint=True)
     metrics_df = {perc: pd.DataFrame(columns=config.METRIC_NAMES) for perc in percentiles}
-    otsu_df = pd.DataFrame(columns=config.METRIC_NAMES)
 
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_test = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+        X_normal, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
         if not X_normal:
             raise ValueError("No training data found")
-        _, X_val = split_data(X_normal, random_state=config.RANDOM_STATE)
 
-        if X_test is None:
+        if not X_anomalies:
             raise ValueError("No test data found")
 
-        X_val, = convert_to_tensor(X_val)
-        X_test = convert_to_tensor(*X_test)
+        X_anomalies = convert_to_tensor(*X_anomalies)
+        for perc in percentiles:
+            foldmetrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
+            fold_preds = []
+            for ei, ii, (X_train, X_val, X_normal_test) in nested_kfolds(X_normal):
+                fold_name = f"ei_{ei}_ii_{ii}"
+                fold_dirpath = patient_dirpath/fold_name
 
-        history = History.load(patient_dirpath/AnomalyDetector.model_dirname/Autoencoder.history_filename)
-        history_plot = pf.plot_train_val_losses(history.train, history.val)
-        history_plot.savefig(str(patient_dirpath/config.LOSS_PLOT_FILENAME))
+                X_val, X_normal_test = convert_to_tensor(X_val, X_normal_test)
 
-        with device_context:
-            model = AnomalyDetector.load(patient_dirpath)
-            losses_val = model.model.calculate_losses(X_val)  # type: ignore
-            for perc in percentiles:
-                model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
-                preds = tuple(model.predict(x) for x in X_test)
-                print(f"Percentile: {perc:.2f}")
-                for i in range(3):
-                    print_sample_evaluations(preds, consecutive_windows=i+1)
-                print()
+                with device_context:
+                    model = AnomalyDetector.load(fold_dirpath)
+                    losses_val = model.model.calculate_losses(X_val)  # type: ignore
 
-                metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-                new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
-                metrics_df[perc] = pd.concat([metrics_df[perc], new_metrics_df])
-            # Otsu's method
-            model.threshold.threshold = threshold_otsu(np.array(losses_val))  # type: ignore
-            preds = tuple(model.predict(x) for x in X_test)
-            metrics_dict = evaluate(preds, config.PREICTAL_SECONDS, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-            new_metrics_df = pd.DataFrame([metrics_dict], index=[patient_name])
-            otsu_df = pd.concat([otsu_df, new_metrics_df])
+                    model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
+                    negative_preds = model.predict(X_normal_test)
+                    positive_preds = tuple(model.predict(x) for x in X_anomalies)
+                    fold_preds.append(positive_preds)
+                    # for i in range(3):
+                    #     print_sample_evaluations(preds, consecutive_windows=i+1)
+                    # print()
+
+                    metrics_dict = evaluate(
+                        positive_preds, negative_preds, X_train.shape[0],
+                        X_val.shape[0],
+                        X_normal_test.shape[0],
+                        config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    new_metrics_df = pd.DataFrame([metrics_dict], index=[fold_name])
+                    foldmetrics_df = pd.concat([foldmetrics_df, new_metrics_df])
+
+                # save metrics for folds
+                average_row = average_performances(foldmetrics_df, "average", config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                foldmetrics_df = pd.concat([foldmetrics_df, average_row])
+                average_row.index = [patient_name]
+                metrics_df[perc] = pd.concat([metrics_df[perc], average_row])
+                foldmetrics_df.round(1).to_csv(patient_dirpath/f"{perc}_{config.METRICS_FILENAME}")
+
+            plot = pf.plot_cumulative_preds(fold_preds, config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+            plot.savefig(str(patient_dirpath/f"{perc}_{config.CUMULATIVE_PREDICTIONS_FILENAME}"))
+            plt.close(plot)
         print()
 
     for k, m in metrics_df.items():
-        m.to_csv(dirpath.joinpath(f"{k}_{config.METRICS_FILENAME}"))
-    otsu_df.round(2).to_csv(dirpath.joinpath(f"otsu_{config.METRICS_FILENAME}"))
+        average_row = average_performances(m, "average", config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+        m = pd.concat([m, average_row])
+        m.round(1).to_csv(dirpath/f"{k}_{config.METRICS_FILENAME}")
 
 
 if __name__ == '__main__':

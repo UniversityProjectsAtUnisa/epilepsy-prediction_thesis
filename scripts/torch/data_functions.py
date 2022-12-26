@@ -2,7 +2,7 @@ import numpy as np
 import numpy as np
 import torch
 import h5py
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 import torch_config as config
 from typing import List, Tuple, Optional
 from itertools import islice
@@ -116,5 +116,20 @@ def load_numpy_dataset(
         print(f'DONE')
         print(f"Testing recordings: {len(X_test)}")
         print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
-
     return X_train, X_test  # type: ignore
+
+
+def nested_kfolds(X: Tuple[np.ndarray], shuffle=False, random_state=None):
+    n_elements = len(X)
+    external_nfolds = min(n_elements, 5)
+    e_kf = KFold(n_splits=external_nfolds, shuffle=shuffle, random_state=random_state)
+    i_kf = KFold(n_splits=external_nfolds-1, shuffle=shuffle, random_state=random_state)
+
+    for ei, (internal_idx, test_idx) in enumerate(e_kf.split(X)):
+        X_internal = tuple(X[i] for i in internal_idx)
+        X_test = tuple(X[i] for i in test_idx)
+        for ii, (train_idx, val_idx) in enumerate(i_kf.split(X_internal)):
+            X_train = tuple(X_internal[i] for i in train_idx)
+            X_val = tuple(X_internal[i] for i in val_idx)
+
+            yield ei, ii, (np.concatenate(X_train), np.concatenate(X_val), np.concatenate(X_test))

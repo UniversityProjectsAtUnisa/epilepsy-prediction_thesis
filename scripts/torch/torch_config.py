@@ -8,15 +8,16 @@ load_dotenv()
 PREICTAL_SECONDS = int(get_envvar('PREICTAL_SECONDS'))
 OUTPUT_PATH = pathlib.Path(get_envvar('OUTPUT_PATH'))
 H5_FILENAME = get_envvar("H5_FILENAME")
-H5_DIRPATH = OUTPUT_PATH.joinpath(str(PREICTAL_SECONDS))
+H5_DIRPATH = OUTPUT_PATH
 H5_FILEPATH = H5_DIRPATH.joinpath(H5_FILENAME)
 SAVED_MODEL_DIR = get_envvar("SAVED_MODEL_DIR", "saves")
-SAVED_MODEL_PATH = OUTPUT_PATH.joinpath(str(PREICTAL_SECONDS), SAVED_MODEL_DIR)
+SAVED_MODEL_PATH = OUTPUT_PATH.joinpath(SAVED_MODEL_DIR)
 WINDOW_SIZE_SECONDS = int(get_envvar('WINDOW_SIZE_SECONDS'))
 WINDOW_OVERLAP_SECONDS = int(get_envvar('WINDOW_OVERLAP_SECONDS'))
 PATIENT_ID = get_envvar("PATIENT_ID", "")
 METRICS_FILENAME = get_envvar("METRICS_FILENAME", "metrics.csv")
 LOSS_PLOT_FILENAME = get_envvar("LOSS_PLOT_FILENAME", "loss_plot.png")
+CUMULATIVE_PREDICTIONS_FILENAME = get_envvar("CUMULATIVE_PREDICTIONS_FILENAME", "cum_preds.png")
 USE_CONVOLUTION = bool(get_envvar("USE_CONVOLUTION", ""))
 
 CUDA_NAME = get_envvar("CUDA_NAME", "cuda")
@@ -31,4 +32,9 @@ PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
 PARTIAL_TESTING = int(get_envvar('PARTIAL_TRAINING'))
 
 # CONSTANTS
-METRIC_NAMES = ["seizures", "undetected%", "pred%", "spec%", "APT (s)", "mPT (s)", "MPT (s)", "PPV (%)", "BPPV (%)", "Imb. (%)"]
+# ASD = Average Sequence Duration
+# AIFP = Average Intra False Positive
+METRIC_NAMES = ["train (s)", "val (s)", "test_normal (s)", "n_seizures", "ASD (s)", "pred%", "spec%",
+                "IFP (s)", "APT (s)", "mPT (s)", "MPT (s)", "PPV (%)", "BPPV (%)", "Imb. (%)"]
+# METRIC_NAMES = ["normal_files"] + BASIC_METRICS
+# METRIC_NAMES = FOLDMETRIC_NAMES
