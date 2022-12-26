@@ -44,6 +44,8 @@ def main():
     patient_names = load_patient_names(config.H5_FILEPATH)
 
     for patient_name in patient_names:
+        if patient_name in config.SKIP_PATIENTS:
+            continue
         train(patient_name, [p for p in patient_names if p != patient_name], dirpath)
 
 

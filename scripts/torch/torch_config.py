@@ -30,6 +30,7 @@ N_EPOCHS = int(get_envvar('N_EPOCHS'))
 BATCH_SIZE = int(get_envvar('BATCH_SIZE'))
 PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
 PARTIAL_TESTING = int(get_envvar('PARTIAL_TRAINING'))
+SKIP_PATIENTS = [f'chb{int(id):02}' for id in get_envvar("SKIP_PATIENTS", "").split(",")]
 
 # CONSTANTS
 # ASD = Average Sequence Duration
