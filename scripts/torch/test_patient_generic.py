@@ -13,7 +13,7 @@ import pandas as pd
 
 def average_performances(df, rowname, window_size_seconds, window_overlap_seconds):
     mean_series = df.mean(axis=0)
-    mean_series["IFP (s)"] = qm.intra_fp_seconds(mean_series["spec%"]/100, window_size_seconds, window_overlap_seconds)
+    mean_series["IFP (s)"] = qm.inter_fp_seconds(mean_series["spec%"]/100, window_size_seconds, window_overlap_seconds)
     return pd.DataFrame(mean_series, columns=[rowname]).T
 
 
@@ -26,7 +26,7 @@ def evaluate(positive_preds, negative_preds, n_train_windows, n_val_windows,
     # metrics['undetected%'] = 100*qm.undetected_predictions(positive_preds)
     metrics['pred%'] = 100*qm.prediction_accuracy(positive_preds)
     metrics['spec%'] = 100*qm.specificity(negative_preds)
-    metrics["IFP (s)"] = qm.intra_fp_seconds(qm.specificity(negative_preds), window_size_seconds, window_overlap_seconds)
+    metrics["IFP (s)"] = qm.inter_fp_seconds(qm.specificity(negative_preds), window_size_seconds, window_overlap_seconds)
     metrics['APT (s)'], metrics['mPT (s)'], metrics['MPT (s)'] = qm.prediction_seconds_before_seizure(
         positive_preds, window_size_seconds, window_overlap_seconds)
     metrics['PPV (%)'] = 100*qm.ppv(positive_preds, negative_preds)

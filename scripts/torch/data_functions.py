@@ -1,5 +1,4 @@
 import numpy as np
-import numpy as np
 import torch
 import h5py
 from sklearn.model_selection import train_test_split, KFold
@@ -7,6 +6,7 @@ import torch_config as config
 from typing import List, Tuple, Optional
 from itertools import islice
 import pandas as pd
+import pathlib
 
 
 def is_consecutive(l):
@@ -133,6 +133,14 @@ def nested_kfolds(X: Tuple[np.ndarray], shuffle=False, random_state=None):
             X_val = tuple(X_internal[i] for i in val_idx)
 
             yield ei, ii, (np.concatenate(X_train), np.concatenate(X_val), np.concatenate(X_test))
+
+
+def interpatient_nested_kfolds(X: Tuple[np.ndarray], input_patient_dirpath: pathlib.Path, shuffle=False, random_state=None):
+    input_kf = (d for d in input_patient_dirpath.iterdir() if d.is_dir())
+
+    for input_path in input_kf:
+        for ei, ii, (X_train, X_val, X_test) in nested_kfolds(X, shuffle, random_state):
+            yield input_path, ei, ii, (X_train, X_val, X_test)
 
 
 def patient_generic_kfolds(Xs: List[np.ndarray], shuffle=False, random_state=None):

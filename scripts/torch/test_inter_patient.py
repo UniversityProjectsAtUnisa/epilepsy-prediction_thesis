@@ -62,29 +62,29 @@ def main():
             foldmetrics_df = pd.DataFrame(columns=config.METRIC_NAMES)
             fold_positive_preds, fold_negative_preds = [], []
             for ei, ii, (X_train, X_val, X_normal_test) in nested_kfolds(X_normal):
-                fold_name = f"ei_{ei}_ii_{ii}"
-                fold_dirpath = patient_dirpath/fold_name
-
                 X_val, X_normal_test = convert_to_tensor(X_val, X_normal_test)
+                fold_names = [d.name for d in patient_dirpath.iterdir() if d.is_dir() and f"ei_{ei}_ii_{ii}" in d.name]
+                for fold_name in fold_names:
+                    fold_dirpath = patient_dirpath/fold_name
 
-                with device_context:
-                    model = AnomalyDetector.load(fold_dirpath)
-                    losses_val = model.model.calculate_losses(X_val)  # type: ignore
+                    with device_context:
+                        model = AnomalyDetector.load(fold_dirpath)
+                        losses_val = model.model.calculate_losses(X_val)  # type: ignore
 
-                    model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
-                    negative_preds = model.predict(X_normal_test)
-                    positive_preds = tuple(model.predict(x) for x in X_anomalies)
+                        model.threshold.threshold = np.percentile(losses_val, perc)  # type: ignore
+                        negative_preds = model.predict(X_normal_test)
+                        positive_preds = tuple(model.predict(x) for x in X_anomalies)
 
-                fold_negative_preds.append(negative_preds)
-                fold_positive_preds.append(positive_preds)
-                # save metrics for folds
-                metrics_dict = evaluate(
-                    positive_preds, negative_preds, X_train.shape[0],
-                    X_val.shape[0],
-                    X_normal_test.shape[0],
-                    config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
-                new_metrics_df = pd.DataFrame([metrics_dict], index=[fold_name])
-                foldmetrics_df = pd.concat([foldmetrics_df, new_metrics_df])
+                    fold_negative_preds.append(negative_preds)
+                    fold_positive_preds.append(positive_preds)
+                    # save metrics for folds
+                    metrics_dict = evaluate(
+                        positive_preds, negative_preds, X_train.shape[0],
+                        X_val.shape[0],
+                        X_normal_test.shape[0],
+                        config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
+                    new_metrics_df = pd.DataFrame([metrics_dict], index=[fold_name])
+                    foldmetrics_df = pd.concat([foldmetrics_df, new_metrics_df])
 
             average_row = average_performances(foldmetrics_df, "average", config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
             foldmetrics_df = pd.concat([foldmetrics_df, average_row])

@@ -19,7 +19,7 @@ def seizure_info(preds, window_size_seconds, window_overlap_seconds):
     return n_seizures, float(mean(durations))
 
 
-def intra_fp_seconds(spec, window_size_seconds, window_overlap_seconds):
+def inter_fp_seconds(spec, window_size_seconds, window_overlap_seconds):
     fpr = 1 - spec
     if fpr == 0:
         return float('nan')

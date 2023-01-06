@@ -7,6 +7,7 @@ load_dotenv()
 # ENVIRONMENT VARIABLES
 PREICTAL_SECONDS = int(get_envvar('PREICTAL_SECONDS'))
 OUTPUT_PATH = pathlib.Path(get_envvar('OUTPUT_PATH'))
+PATIENT_GENERIC_OUTPUT_PATH = pathlib.Path(get_envvar("PATIENT_GENERIC_OUTPUT_PATH"))
 H5_FILENAME = get_envvar("H5_FILENAME")
 H5_DIRPATH = OUTPUT_PATH
 H5_FILEPATH = H5_DIRPATH.joinpath(H5_FILENAME)
@@ -30,11 +31,11 @@ N_EPOCHS = int(get_envvar('N_EPOCHS'))
 BATCH_SIZE = int(get_envvar('BATCH_SIZE'))
 PARTIAL_TRAINING = int(get_envvar('PARTIAL_TRAINING'))
 PARTIAL_TESTING = int(get_envvar('PARTIAL_TRAINING'))
-SKIP_PATIENTS = [f'chb{int(id):02}' for id in get_envvar("SKIP_PATIENTS", "").split(",")]
+SKIP_PATIENTS = [f'chb{int(id):02}' for id in get_envvar("SKIP_PATIENTS", "").split(",") if id != ""]
 
 # CONSTANTS
 # ASD = Average Sequence Duration
-# AIFP = Average Intra False Positive
+# IFP = Inter False Positive
 METRIC_NAMES = ["train (s)", "val (s)", "test_normal (s)", "n_seizures", "ASD (s)", "pred%", "spec%",
                 "IFP (s)", "APT (s)", "mPT (s)", "MPT (s)", "PPV (%)", "BPPV (%)", "Imb. (%)"]
 # METRIC_NAMES = ["normal_files"] + BASIC_METRICS

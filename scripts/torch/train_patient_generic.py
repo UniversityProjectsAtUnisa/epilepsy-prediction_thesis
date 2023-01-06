@@ -3,6 +3,8 @@ from data_functions import convert_to_tensor, load_numpy_dataset, load_patient_n
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 from evaluation import plot_functions as pf
+from multiprocessing import Pool
+import torch
 
 
 def train(patient_name, other_patients, dirpath):
@@ -38,10 +40,19 @@ def train(patient_name, other_patients, dirpath):
 
 
 def main():
+    torch.multiprocessing.set_start_method('spawn')
     dirpath = config.SAVED_MODEL_PATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
     patient_names = load_patient_names(config.H5_FILEPATH)
+
+    # with Pool(3) as p:
+    #     args = []
+    #     for patient_name in patient_names:
+    #         if patient_name in config.SKIP_PATIENTS:
+    #             continue
+    #         args.append((patient_name, [p for p in patient_names if p != patient_name], dirpath))
+    #     p.starmap(train, args)
 
     for patient_name in patient_names:
         if patient_name in config.SKIP_PATIENTS:
