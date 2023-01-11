@@ -29,7 +29,7 @@ def contains_seizure(edf_filepath: pathlib.Path) -> bool:
 
 
 def load_duration(edf_filepath: pathlib.Path) -> Tuple[int, bool]:
-    return extract_data(edf_filepath).shape[1] // config.SAMPLING_FREQUENCY
+    return extract_data(edf_filepath).shape[1] // config.SAMPLING_FREQUENCY  # type: ignore
 
 
 def count_total_files(dataset_path: pathlib.Path) -> Tuple[int, int]:

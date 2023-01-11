@@ -2,9 +2,10 @@ import os
 import h5py
 import numpy as np
 import typing
+from typing import Optional
 
 
-def get_envvar(name, default: str | None = None):
+def get_envvar(name, default: Optional[str] = None):
     """a function to get an environment variable that throws an exception if not found"""
     value = os.getenv(name)
     if value is not None:

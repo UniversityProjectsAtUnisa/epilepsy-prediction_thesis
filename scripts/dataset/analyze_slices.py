@@ -1,10 +1,10 @@
 import json
 import config
 import pandas as pd
-from typing import Any
+from typing import Any, Dict
 
 
-def load_slices_metadata(output_path) -> dict[str, dict[str, dict[str, Any]]]:
+def load_slices_metadata(output_path) -> Dict[str, Dict[str, Dict[str, Any]]]:
     with open(output_path.joinpath(config.SLICES_FILENAME)) as f:
         return json.load(f)
 
