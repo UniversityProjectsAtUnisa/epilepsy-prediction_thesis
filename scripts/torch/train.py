@@ -2,6 +2,7 @@ import torch_config as config
 from data_functions import convert_to_tensor, load_numpy_dataset, load_patient_names, nested_kfolds
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
+from utils.train_utils import ConditionalParallelTrainer
 from evaluation import plot_functions as pf
 
 
@@ -36,15 +37,12 @@ def main():
     dirpath = config.SAVED_MODEL_PATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
-    if config.PATIENT_ID:
-        patient_names = [config.PATIENT_ID]
-    else:
-        patient_names = load_patient_names(config.H5_FILEPATH)
+    patient_names = load_patient_names(config.H5_FILEPATH)
 
-    for patient_name in patient_names:
-        if patient_name in config.SKIP_PATIENTS:
-            continue
-        train(patient_name, dirpath)
+    trainer = ConditionalParallelTrainer(train_function=train, parallel_training=config.PARALLEL_TRAINING, n_workers=config.PARALLEL_WORKERS)
+    args = [(patient_name, dirpath) for patient_name in patient_names if patient_name not in config.SKIP_PATIENTS]
+
+    trainer(*args)
 
 
 if __name__ == '__main__':

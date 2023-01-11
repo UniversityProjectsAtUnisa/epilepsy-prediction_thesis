@@ -1,6 +1,7 @@
-from utils.utils import get_envvar
+from utils.env_utils import get_envvar, get_bool_envvar
 import pathlib
 from dotenv import load_dotenv
+from utils.types import FinetuningMode
 
 load_dotenv()
 
@@ -15,11 +16,13 @@ SAVED_MODEL_DIR = get_envvar("SAVED_MODEL_DIR", "saves")
 SAVED_MODEL_PATH = OUTPUT_PATH.joinpath(SAVED_MODEL_DIR)
 WINDOW_SIZE_SECONDS = int(get_envvar('WINDOW_SIZE_SECONDS'))
 WINDOW_OVERLAP_SECONDS = int(get_envvar('WINDOW_OVERLAP_SECONDS'))
-PATIENT_ID = get_envvar("PATIENT_ID", "")
 METRICS_FILENAME = get_envvar("METRICS_FILENAME", "metrics.csv")
 LOSS_PLOT_FILENAME = get_envvar("LOSS_PLOT_FILENAME", "loss_plot.png")
 CUMULATIVE_PREDICTIONS_FILENAME = get_envvar("CUMULATIVE_PREDICTIONS_FILENAME", "cum_preds.png")
-USE_CONVOLUTION = bool(get_envvar("USE_CONVOLUTION", ""))
+USE_CONVOLUTION = get_bool_envvar("USE_CONVOLUTION", False)
+FINETUNING_MODE = FinetuningMode(get_envvar("FINETUNING_MODE", "full").lower())
+PARALLEL_TRAINING = get_bool_envvar("PARALLEL_TRAINING", False)
+PARALLEL_WORKERS = int(get_envvar('WINDOW_OVERLAP_SECONDS', "0"))
 
 CUDA_NAME = get_envvar("CUDA_NAME", "cuda")
 

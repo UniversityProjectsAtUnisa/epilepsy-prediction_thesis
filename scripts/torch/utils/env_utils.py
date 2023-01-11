@@ -1,6 +1,4 @@
-from contextlib import contextmanager
 import os
-import torch
 from typing import Optional
 
 
@@ -12,3 +10,10 @@ def get_envvar(name, default: Optional[str] = None):
     if default is not None:
         return default
     raise ValueError(f"Environment variable `{name}` not found")
+
+
+def get_bool_envvar(name, default: Optional[bool] = None):
+    if default is None:
+        default = False
+    value = get_envvar(name, str(default))
+    return value.lower() in ("yes", "true", "t", "1")

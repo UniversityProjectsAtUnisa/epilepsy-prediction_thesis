@@ -15,6 +15,13 @@ def get_envvar(name, default: Optional[str] = None):
     raise ValueError(f"Environment variable `{name}` not found")
 
 
+def get_bool_envvar(name, default: Optional[bool] = None):
+    if default is None:
+        default = False
+    value = get_envvar(name, str(default))
+    return value.lower() in ("yes", "true", "t", "1")
+
+
 class ResizableH5Dataset:
     def __init__(self, h5_path: str, compression='lzf'):
         self.h5_path = h5_path
