@@ -40,8 +40,7 @@ def train(patient_name, dirpath, patientgeneric_dirpath, finetuning_mode: Finetu
         print(f"Interpatient model for patient {patient_name} has already been trained")
         return
 
-    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=True,
-                                     n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=True, n_subwindows=config.N_SUBWINDOWS)
 
     if not X_normal:
         raise ValueError("No training data found")
@@ -54,7 +53,7 @@ def train(patient_name, dirpath, patientgeneric_dirpath, finetuning_mode: Finetu
             X_train, X_val, X_test = convert_to_tensor(X_train, X_val, X_test)
             model = AnomalyDetector.load(input_fold_dirpath)
             model = prepare_for_finetuning(model, finetuning_mode)
-            
+
             history = model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
                                   dirpath=output_fold_dirpath, learning_rate=config.LEARNING_RATE)
         model.save(output_fold_dirpath)

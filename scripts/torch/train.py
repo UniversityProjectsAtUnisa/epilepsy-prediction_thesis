@@ -12,7 +12,7 @@ def train(patient_name, dirpath):
     if (patient_dirpath/"complete").exists():
         print(f"Patient {patient_name} already trained")
         return
-    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=False, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=False, n_subwindows=config.N_SUBWINDOWS)
 
     if not X_normal:
         raise ValueError("No training data found")
@@ -23,7 +23,7 @@ def train(patient_name, dirpath):
 
         with device_context:
             X_train, X_val = convert_to_tensor(X_train, X_val)
-            model = AnomalyDetector(use_convolution=config.USE_CONVOLUTION)
+            model = AnomalyDetector()
             history = model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
                                   dirpath=fold_dirpath, learning_rate=config.LEARNING_RATE)
 

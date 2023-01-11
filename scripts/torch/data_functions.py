@@ -46,10 +46,7 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
                 X_train_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/train"].values())  # type: ignore
             else:
                 X_train_generator = (x[:] for x in f[f"{patient_name}/train"].values())  # type: ignore
-            if config.PARTIAL_TRAINING == 0:
-                X_train = tuple(X_train_generator)
-            else:
-                X_train = tuple(islice(X_train_generator, config.PARTIAL_TRAINING))
+            X_train = tuple(X_train_generator)
             print("DONE")
             print(f"Training recordings: {len(X_train)}")
             print(f"Total training samples: {sum(x.shape[0] for x in X_train)}")
@@ -60,10 +57,7 @@ def load_data(dataset_path, patient_name, load_train=True, load_test=True, prepr
                 X_test_generator = (preprocess_data(x[:]) for x in f[f"{patient_name}/test"].values())  # type: ignore
             else:
                 X_test_generator = (x[:] for x in f[f"{patient_name}/test"].values())  # type: ignore
-            if config.PARTIAL_TESTING == 0:
-                X_test = tuple(X_test_generator)
-            else:
-                X_test = tuple(islice(X_test_generator, config.PARTIAL_TESTING))
+            X_test = tuple(X_test_generator)
             print(f'DONE')
             print(f"Testing recordings: {len(X_test)}")
             print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")

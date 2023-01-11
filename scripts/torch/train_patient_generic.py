@@ -16,7 +16,7 @@ def train(patient_name, other_patients, dirpath):
 
     X_normals = []
     for p in other_patients:
-        X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+        X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS)
         if X_normal:
             X_normals.append(X_normal)
 
@@ -29,7 +29,7 @@ def train(patient_name, other_patients, dirpath):
 
         with device_context:
             X_train, X_val = convert_to_tensor(X_train, X_val)
-            model = AnomalyDetector(use_convolution=config.USE_CONVOLUTION)
+            model = AnomalyDetector()
             history = model.train(X_train, X_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
                                   dirpath=fold_dirpath, learning_rate=config.LEARNING_RATE)
 

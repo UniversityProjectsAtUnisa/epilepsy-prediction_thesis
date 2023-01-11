@@ -39,10 +39,7 @@ def main():
     dirpath = config.SAVED_MODEL_PATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
-    if config.PATIENT_ID:
-        patient_names = [config.PATIENT_ID]
-    else:
-        patient_names = sorted(load_patient_names(config.H5_FILEPATH))
+    patient_names = sorted(load_patient_names(config.H5_FILEPATH))
 
     percentiles = np.linspace(99.8, 100, 3, endpoint=True)
     metrics_df = {perc: pd.DataFrame(columns=config.METRIC_NAMES) for perc in percentiles}
@@ -50,7 +47,7 @@ def main():
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS, preprocess=not config.USE_CONVOLUTION)
+        X_normal, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS)
         if not X_normal:
             raise ValueError("No training data found")
 
@@ -88,7 +85,7 @@ def main():
 
             average_row = average_performances(foldmetrics_df, "average", config.WINDOW_SIZE_SECONDS, config.WINDOW_OVERLAP_SECONDS)
             foldmetrics_df = pd.concat([foldmetrics_df, average_row])
-            average_row.index = [patient_name]
+            average_row.index = [patient_name]  # type: ignore
             metrics_df[perc] = pd.concat([metrics_df[perc], average_row])
             foldmetrics_df.round(1).to_csv(patient_dirpath/f"{perc}_{config.METRICS_FILENAME}")
 
