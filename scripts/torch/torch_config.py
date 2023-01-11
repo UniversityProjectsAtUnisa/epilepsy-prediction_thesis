@@ -5,8 +5,6 @@ from utils.types import FinetuningMode
 
 load_dotenv()
 
-# =ENVIRONMENT VARIABLES
-
 # ==MANDATORY
 OUTPUT_PATH = pathlib.Path(get_envvar('OUTPUT_PATH'))
 WINDOW_SIZE_SECONDS = int(get_envvar('WINDOW_SIZE_SECONDS'))
