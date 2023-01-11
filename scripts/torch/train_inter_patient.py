@@ -65,7 +65,7 @@ def train(patient_name, dirpath, patientgeneric_dirpath, finetuning_mode: Finetu
 def main():
     dirpath = config.SAVED_MODEL_PATH
     dirpath.mkdir(exist_ok=True, parents=True)
-    patientgeneric_dirpath = config.PATIENT_GENERIC_OUTPUT_PATH
+    patientgeneric_dirpath = config.PATIENT_GENERIC_OUTPUT_DIRPATH
     finetuning_mode = config.FINETUNING_MODE
 
     patient_names = load_patient_names(config.H5_FILEPATH)

@@ -16,7 +16,7 @@ WINDOW_OVERLAP_SECONDS = int(get_envvar('WINDOW_OVERLAP_SECONDS'))
 H5_FILEPATH = get_envvar("H5_FILEPATH", "")
 
 # ==OPTIONAL: PATH
-patient_generic_output_strpath = get_envvar("PATIENT_GENERIC_OUTPUT_PATH")
+PATIENT_GENERIC_OUTPUT_DIRNAME = get_envvar("PATIENT_GENERIC_OUTPUT_PATH", "patientgeneric")
 H5_FILENAME = get_envvar("H5_FILENAME", "dataset.h5")
 SAVED_MODEL_DIRNAME = get_envvar("SAVED_MODEL_DIRNAME", "saves")
 METRICS_FILENAME = get_envvar("METRICS_FILENAME", "metrics.csv")
@@ -44,9 +44,9 @@ PREICTAL_SECONDS = int(get_envvar('PREICTAL_SECONDS', "300"))
 
 
 # ==DERIVED
-PATIENT_GENERIC_OUTPUT_PATH = OUTPUT_PATH/"patientgeneric" if patient_generic_output_strpath == "" else pathlib.Path(patient_generic_output_strpath)
 H5_FILEPATH = OUTPUT_PATH/H5_FILEPATH if H5_FILEPATH == "" else pathlib.Path(H5_FILEPATH)
 H5_DIRPATH = H5_FILEPATH.parent
+PATIENT_GENERIC_OUTPUT_DIRPATH = OUTPUT_PATH/PATIENT_GENERIC_OUTPUT_DIRNAME
 SAVED_MODEL_PATH = OUTPUT_PATH/SAVED_MODEL_DIRNAME
 
 
