@@ -3,8 +3,6 @@ from data_functions import convert_to_tensor, load_numpy_dataset, load_patient_n
 from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 from evaluation import plot_functions as pf
-from multiprocessing import Pool
-import torch
 from utils.train_utils import ConditionalParallelTrainer
 from utils.types import FinetuningMode
 
@@ -63,7 +61,7 @@ def train(patient_name, dirpath, patientgeneric_dirpath, finetuning_mode: Finetu
 
 
 def main():
-    dirpath = config.SAVED_MODEL_PATH
+    dirpath = config.SAVED_MODEL_DIRPATH
     dirpath.mkdir(exist_ok=True, parents=True)
     patientgeneric_dirpath = config.PATIENT_GENERIC_OUTPUT_DIRPATH
     finetuning_mode = config.FINETUNING_MODE

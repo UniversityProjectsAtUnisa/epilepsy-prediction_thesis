@@ -34,7 +34,7 @@ def train(patient_name, dirpath):
 
 
 def main():
-    dirpath = config.SAVED_MODEL_PATH
+    dirpath = config.SAVED_MODEL_DIRPATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
     patient_names = load_patient_names(config.H5_FILEPATH)

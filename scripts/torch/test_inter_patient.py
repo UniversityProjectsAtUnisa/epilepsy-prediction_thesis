@@ -36,7 +36,7 @@ def evaluate(positive_preds, negative_preds, n_train_windows, n_val_windows,
 
 
 def main():
-    dirpath = config.SAVED_MODEL_PATH
+    dirpath = config.SAVED_MODEL_DIRPATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
     patient_names = sorted(load_patient_names(config.H5_FILEPATH))

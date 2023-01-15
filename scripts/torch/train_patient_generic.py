@@ -4,7 +4,6 @@ from model.anomaly_detector import AnomalyDetector
 from utils.gpu_utils import device_context
 from evaluation import plot_functions as pf
 from utils.train_utils import ConditionalParallelTrainer
-import torch
 
 
 def train(patient_name, other_patients, dirpath):
@@ -40,7 +39,7 @@ def train(patient_name, other_patients, dirpath):
 
 
 def main():
-    dirpath = config.SAVED_MODEL_PATH
+    dirpath = config.SAVED_MODEL_DIRPATH
     dirpath.mkdir(exist_ok=True, parents=True)
 
     patient_names = load_patient_names(config.H5_FILEPATH)
