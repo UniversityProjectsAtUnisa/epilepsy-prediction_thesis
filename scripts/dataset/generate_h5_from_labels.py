@@ -10,19 +10,22 @@ from pandas.errors import PerformanceWarning
 
 import dataset_config as config
 from data_functions.load import load_paper_labels
-from data_functions.edf import read_raw_edf, split_epochs, preprocess_epochs, epochs_to_numpy, preprocess_numpy
+from data_functions.edf import EDFOperations
 
 
-def load_patient_data(data_filepath: pathlib.Path, useful_channels: List[str]) -> np.ndarray:
-    raw = read_raw_edf(data_filepath, useful_channels)
-    epochs = split_epochs(raw)
-    preprocessed_epochs = preprocess_epochs(epochs)
-    numpy_epochs_data = epochs_to_numpy(preprocessed_epochs)
-    data = np.array(list(map(preprocess_numpy, numpy_epochs_data)))
+def load_patient_data(data_filepath: pathlib.Path, useful_channels: List[str], use_spectrograms: bool = False) -> np.ndarray:
+    o = EDFOperations(use_spectrograms)
+    raw = o.read_raw_edf(data_filepath, useful_channels)
+    epochs = o.split_epochs(raw)
+    preprocessed_epochs = o.preprocess_epochs(epochs)
+    numpy_epochs_data = o.epochs_to_numpy(preprocessed_epochs)
+    data = o.preprocess_numpy(numpy_epochs_data)
     return data
 
 
-def create_seizure_datasets(h5_filepath: pathlib.Path, dataset_dirpath: pathlib.Path, seizure_labels_filepath: pathlib.Path, useful_channels: List[str]):
+def create_seizure_datasets(
+        h5_filepath: pathlib.Path, dataset_dirpath: pathlib.Path, seizure_labels_filepath: pathlib.Path, useful_channels: List[str],
+        use_spectrograms: bool):
     seizure_y = load_paper_labels(seizure_labels_filepath)
 
     patient_names = seizure_y['name'].unique()
@@ -45,7 +48,7 @@ def create_seizure_datasets(h5_filepath: pathlib.Path, dataset_dirpath: pathlib.
                 if current_sequence_end - current_sequence_start >= config.PREICTAL_SECONDS:
                     file_idxs.append(np.arange(current_sequence_start - file_labels.index[0], current_sequence_end - file_labels.index[0]))
 
-            data = load_patient_data(dataset_dirpath/patient_name/filename, config.USEFUL_CHANNELS)
+            data = load_patient_data(dataset_dirpath/patient_name/filename, useful_channels, use_spectrograms)
             for idxs in file_idxs:
                 with h5py.File(h5_filepath, 'a') as f:
                     f.create_dataset(f"{patient_name}/test/X/{n_patient_seizures}", data=data[idxs])
@@ -53,7 +56,9 @@ def create_seizure_datasets(h5_filepath: pathlib.Path, dataset_dirpath: pathlib.
                 n_patient_seizures += 1
 
 
-def create_normal_datasets(h5_filepath: pathlib.Path, dataset_dirpath: pathlib.Path, normal_labels_filepath: pathlib.Path, useful_channels: List[str]):
+def create_normal_datasets(
+        h5_filepath: pathlib.Path, dataset_dirpath: pathlib.Path, normal_labels_filepath: pathlib.Path, useful_channels: List[str],
+        use_spectrograms: bool):
     normal_y = load_paper_labels(normal_labels_filepath)
 
     patient_names = normal_y['name'].unique()
@@ -61,7 +66,7 @@ def create_normal_datasets(h5_filepath: pathlib.Path, dataset_dirpath: pathlib.P
         n_normals = 0
         patient_filenames = normal_y[normal_y["name"] == patient_name]['filename'].unique()
         for filename in tqdm(patient_filenames, desc=f"{patient_name}", leave=False):
-            data = load_patient_data(dataset_dirpath/patient_name/filename, useful_channels)
+            data = load_patient_data(dataset_dirpath/patient_name/filename, useful_channels, use_spectrograms)
             labels = normal_y[normal_y['filename'] == filename]
             with h5py.File(h5_filepath, 'a') as f:
                 f.create_dataset(f"{patient_name}/train/X/{n_normals}", data=data)
@@ -76,17 +81,18 @@ def main():
 
     h5_filepath = config.H5_FILEPATH
     if h5_filepath.exists():
-        # raise FileExistsError(f"{h5_filepath} already exists. Delete it first.")
-        pass
+        raise FileExistsError(f"{h5_filepath} already exists. Delete it first.")
     h5_filepath.parent.mkdir(exist_ok=True, parents=True)
 
     dataset_dirpath = config.DATASET_DIRPATH
     normal_labels_filepath = config.NORMAL_LABELS_FILEPATH
     seizure_labels_filepath = config.SEIZURE_LABELS_FILEPATH
-    useful_channels = config.USEFUL_CHANNELS
 
-    create_normal_datasets(h5_filepath, dataset_dirpath, normal_labels_filepath, useful_channels)
-    create_seizure_datasets(h5_filepath, dataset_dirpath, seizure_labels_filepath, useful_channels)
+    useful_channels = config.USEFUL_CHANNELS
+    use_spectrograms = config.USE_SPECTROGRAMS
+
+    create_normal_datasets(h5_filepath, dataset_dirpath, normal_labels_filepath, useful_channels, use_spectrograms)
+    create_seizure_datasets(h5_filepath, dataset_dirpath, seizure_labels_filepath, useful_channels, use_spectrograms)
 
 
 if __name__ == '__main__':
