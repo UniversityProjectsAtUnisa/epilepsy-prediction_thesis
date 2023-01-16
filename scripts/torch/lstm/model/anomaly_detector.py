@@ -2,8 +2,8 @@ import pathlib
 from typing import Optional
 
 import torch
-import torch_config as config
-from utils.gpu_utils import device_context
+from ... import torch_config as config
+from ...utils.gpu_utils import device_context
 
 from .autoencoder import Autoencoder
 from .threshold import Threshold

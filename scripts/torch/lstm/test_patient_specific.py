@@ -1,11 +1,10 @@
-from data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, nested_kfolds
-from evaluation import quality_metrics as qm
-from evaluation import plot_functions as pf
-import torch_config as config
-from model.anomaly_detector import AnomalyDetector
-from utils.gpu_utils import device_context
+from ..data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, nested_kfolds
+from ..evaluation import quality_metrics as qm
+from ..evaluation import plot_functions as pf
+from .. import torch_config as config
+from .model.anomaly_detector import AnomalyDetector
+from ..utils.gpu_utils import device_context
 import matplotlib.pyplot as plt
-
 
 import numpy as np
 import pandas as pd

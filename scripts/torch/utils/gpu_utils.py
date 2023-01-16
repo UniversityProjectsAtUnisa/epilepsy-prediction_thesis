@@ -1,6 +1,6 @@
 import torch
 from enum import Enum
-import torch_config as config
+from .. import torch_config as config
 
 
 class DeviceType(Enum):

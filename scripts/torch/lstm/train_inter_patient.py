@@ -1,10 +1,10 @@
-import torch_config as config
-from data_functions import convert_to_tensor, load_numpy_dataset, load_patient_names, interpatient_nested_kfolds
-from model.anomaly_detector import AnomalyDetector
-from utils.gpu_utils import device_context
-from evaluation import plot_functions as pf
-from utils.train_utils import ConditionalParallelTrainer
-from utils.types import FinetuningMode
+from .. import torch_config as config
+from ..data_functions import convert_to_tensor, load_numpy_dataset, load_patient_names, interpatient_nested_kfolds
+from .model.anomaly_detector import AnomalyDetector
+from ..utils.gpu_utils import device_context
+from ..evaluation import plot_functions as pf
+from ..utils.train_utils import ConditionalParallelTrainer
+from ..utils.custom_types import FinetuningMode
 
 
 def prepare_for_finetuning(model, mode: FinetuningMode):

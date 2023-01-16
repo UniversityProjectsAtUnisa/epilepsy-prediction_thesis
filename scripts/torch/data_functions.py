@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import h5py
 from sklearn.model_selection import train_test_split, KFold
-import torch_config as config
+from . import torch_config as config
 from typing import List, Tuple, Optional
 from itertools import islice
 import pandas as pd

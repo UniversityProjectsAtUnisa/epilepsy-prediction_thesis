@@ -1,7 +1,7 @@
-from utils.env_utils import get_envvar, get_bool_envvar
+from .utils.env_utils import get_envvar, get_bool_envvar
 import pathlib
 from dotenv import load_dotenv
-from utils.types import FinetuningMode
+from .utils.custom_types import FinetuningMode
 
 load_dotenv()
 

@@ -7,10 +7,10 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from utils.gpu_utils import device_context
+from ...utils.gpu_utils import device_context
 
-from .helpers import plotfunction as pf
-from .helpers.history import History
+from ...helpers import plotfunction as pf
+from ...helpers.history import History
 from .modules.conv_decoder import ConvDecoder
 from .modules.conv_encoder import ConvEncoder
 from .modules.lstm_autoencoder import LSTMAutoencoder
