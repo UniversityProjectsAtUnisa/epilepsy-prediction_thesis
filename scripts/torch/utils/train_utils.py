@@ -14,4 +14,5 @@ class ConditionalParallelTrainer:
             with Pool(self.n_workers) as p:
                 p.starmap(self.train_function, *args, **kw)
         else:
-            self.train_function(*args, **kw)
+            for arg in args:
+                self.train_function(*arg, **kw)

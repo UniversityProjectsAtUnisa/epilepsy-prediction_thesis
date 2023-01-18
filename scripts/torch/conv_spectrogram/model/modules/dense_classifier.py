@@ -1,6 +1,8 @@
 from torch import nn
 import torch.nn.functional as F
 import torch
+import pathlib
+from ....utils.gpu_utils import device_context
 
 
 class DenseClassifier(nn.Module):
@@ -18,3 +20,15 @@ class DenseClassifier(nn.Module):
         x = torch.sigmoid(self.fc4(x))
 
         return x
+
+    @classmethod
+    def load(cls, filepath: pathlib.Path):
+        model = torch.load(filepath, map_location=device_context.device)
+        if not isinstance(model, cls):
+            raise Exception("Invalid model file")
+        return model
+
+    def save(self, filepath: pathlib.Path):
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        module_filepath = filepath
+        torch.save(self, module_filepath)

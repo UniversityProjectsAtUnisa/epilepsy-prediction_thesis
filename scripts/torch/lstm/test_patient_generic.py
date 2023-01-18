@@ -1,4 +1,4 @@
-from ..data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, patient_generic_kfolds
+from ..data_functions import load_data, convert_to_tensor, load_patient_names, patient_generic_kfolds
 from ..evaluation import quality_metrics as qm
 from ..evaluation import plot_functions as pf
 from .. import torch_config as config
@@ -50,14 +50,14 @@ def main():
 
         X_normals = []
         for p in other_patients:
-            X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS)
+            X_normal, _ = load_data(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS)
             if X_normal:
                 X_normals.append(X_normal)
 
         if not X_normals:
             raise ValueError("No validation data found")
 
-        X_normal_test, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS)
+        X_normal_test, X_anomalies = load_data(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS)
         if not X_normal_test:
             raise ValueError("No negative test data found")
 

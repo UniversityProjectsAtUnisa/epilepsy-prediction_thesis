@@ -1,5 +1,5 @@
 from .. import torch_config as config
-from ..data_functions import convert_to_tensor, load_numpy_dataset, load_patient_names, patient_generic_kfolds
+from ..data_functions import convert_to_tensor, load_data, load_patient_names, patient_generic_kfolds
 from .model.anomaly_detector import AnomalyDetector
 from ..utils.gpu_utils import device_context
 from ..evaluation import plot_functions as pf
@@ -15,7 +15,7 @@ def train(patient_name, other_patients, dirpath):
 
     X_normals = []
     for p in other_patients:
-        X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS)
+        X_normal, _ = load_data(config.H5_FILEPATH, p, load_test=False, n_subwindows=config.N_SUBWINDOWS)
         if X_normal:
             X_normals.append(X_normal)
 

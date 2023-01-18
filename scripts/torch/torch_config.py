@@ -28,6 +28,7 @@ N_SUBWINDOWS = int(get_envvar('N_SUBWINDOWS', "2"))
 LEARNING_RATE = float(get_envvar('LEARNING_RATE', "1e-3"))
 N_EPOCHS = int(get_envvar('N_EPOCHS', "150"))
 BATCH_SIZE = int(get_envvar('BATCH_SIZE', "32"))
+PATIENCE = int(get_envvar('PATIENCE', "15"))
 FINETUNING_MODE = FinetuningMode(get_envvar("FINETUNING_MODE", "full").lower())
 
 # ==OPTIONAL: PERFORMANCE

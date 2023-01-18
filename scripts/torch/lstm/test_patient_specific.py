@@ -1,4 +1,4 @@
-from ..data_functions import load_numpy_dataset, convert_to_tensor, load_patient_names, nested_kfolds
+from ..data_functions import load_data, convert_to_tensor, load_patient_names, nested_kfolds
 from ..evaluation import quality_metrics as qm
 from ..evaluation import plot_functions as pf
 from .. import torch_config as config
@@ -46,7 +46,7 @@ def main():
     for patient_name in patient_names:
         print(f"Testing for patient {patient_name}")
         patient_dirpath = dirpath.joinpath(patient_name)
-        X_normal, X_anomalies = load_numpy_dataset(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS)
+        X_normal, X_anomalies = load_data(config.H5_FILEPATH, patient_name, n_subwindows=config.N_SUBWINDOWS)
         if not X_normal:
             raise ValueError("No training data found")
 

@@ -1,5 +1,5 @@
 from .. import torch_config as config
-from ..data_functions import convert_to_tensor, load_numpy_dataset, load_patient_names, interpatient_nested_kfolds
+from ..data_functions import convert_to_tensor, load_data, load_patient_names, interpatient_nested_kfolds
 from .model.anomaly_detector import AnomalyDetector
 from ..utils.gpu_utils import device_context
 from ..evaluation import plot_functions as pf
@@ -38,7 +38,7 @@ def train(patient_name, dirpath, patientgeneric_dirpath, finetuning_mode: Finetu
         print(f"Interpatient model for patient {patient_name} has already been trained")
         return
 
-    X_normal, _ = load_numpy_dataset(config.H5_FILEPATH, patient_name, load_test=True, n_subwindows=config.N_SUBWINDOWS)
+    X_normal, _ = load_data(config.H5_FILEPATH, patient_name, load_test=True, n_subwindows=config.N_SUBWINDOWS)
 
     if not X_normal:
         raise ValueError("No training data found")

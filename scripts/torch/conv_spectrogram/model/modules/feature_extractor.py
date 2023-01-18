@@ -1,6 +1,8 @@
 from torch import nn
 import torch.nn.functional as F
 import torch
+import pathlib
+from ....utils.gpu_utils import device_context
 
 
 def build_padded_conv(in_ch, out_ch, kernel):
@@ -9,10 +11,13 @@ def build_padded_conv(in_ch, out_ch, kernel):
 
 
 class FeatureExtractor(nn.Module):
-    def __init__(self, lead_count: int):
+    module_filename = "feature_extractor.pth"
+    n_channels = 21
+
+    def __init__(self):
         super(FeatureExtractor, self).__init__()
 
-        self.conv1 = build_padded_conv(in_ch=lead_count, out_ch=1024, kernel=5)
+        self.conv1 = build_padded_conv(in_ch=self.n_channels, out_ch=1024, kernel=5)
         self.bn1 = nn.BatchNorm2d(1024)
 
         self.conv2 = build_padded_conv(in_ch=1024, out_ch=512, kernel=5)
@@ -68,3 +73,16 @@ class FeatureExtractor(nn.Module):
         x = self.flatten(x)
 
         return x
+
+    @classmethod
+    def load(cls, dirpath: pathlib.Path):
+        module_filepath = dirpath/cls.module_filename
+        model = torch.load(module_filepath, map_location=device_context.device)
+        if not isinstance(model, cls):
+            raise Exception("Invalid model file")
+        return model
+
+    def save(self, dirpath: pathlib.Path):
+        dirpath.mkdir(parents=True, exist_ok=True)
+        module_filepath = dirpath/self.module_filename
+        torch.save(self, module_filepath)
