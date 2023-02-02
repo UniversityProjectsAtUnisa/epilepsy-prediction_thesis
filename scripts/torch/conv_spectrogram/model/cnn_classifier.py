@@ -31,10 +31,25 @@ class WindowDataset(Dataset):
 
 
 def build_sampler(y: np.ndarray):
-    false_probability = sum(y == 0)/len(y)
-    weights = [false_probability, 1-false_probability]
-    samples_weight = np.where(y == 0, weights[1], weights[0])
+    samples_weight = build_samplesweight(y)
     return WeightedRandomSampler(samples_weight, len(samples_weight))
+
+
+def get_class_weights(y: np.ndarray):
+    false_probability = sum(y == 0)/len(y)
+    weights = [1-false_probability, false_probability]
+    return weights
+
+
+def build_samplesweight(y: np.ndarray):
+    class_weights = get_class_weights(y)
+    samples_weight = np.where(y == 0, class_weights[0], class_weights[1])
+    return samples_weight
+
+
+def build_weighted_loss(y: np.ndarray):
+    samples_weight = build_samplesweight(y)
+    return nn.BCELoss(weight=torch.from_numpy(samples_weight).float())
 
 
 class CNNClassifier(nn.Module):
@@ -54,7 +69,7 @@ class CNNClassifier(nn.Module):
             raise Exception("Model not initialized")
         return self.mlp(self.fe(x))
 
-    @ classmethod
+    @classmethod
     def load(cls, dirpath: pathlib.Path):
         fe = FeatureExtractor.load(dirpath/cls.fe_filename)
         mlp = DenseClassifier.load(dirpath/cls.mlp_filename)
@@ -98,20 +113,18 @@ class CNNClassifier(nn.Module):
         return y_proba
 
     def train_model(self, X_train, y_train, X_val, y_val, n_epochs, batch_size=64, dirpath: pathlib.Path = pathlib.Path("/tmp"), learning_rate=1e-4, patience=15):
-        early_stopping_counter = 0
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-        criterion = nn.BCELoss()
         history = History()
 
         best_model_wts = copy.deepcopy(self.state_dict())
-        best_loss = math.inf
 
-        y_train_np = y_train.cpu().numpy()
         y_val_np = y_val.cpu().numpy()
+
+        class_weights = get_class_weights(y_val_np)
+        criterion = nn.BCELoss(weight=torch.Tensor())
 
         train_dataset = WindowDataset(X_train, y_train)
         val_dataset = WindowDataset(X_val, y_val)
-        sampler = build_sampler(y_train_np)
 
         start_time = time.strftime('%H:%M:%S', time.localtime(time.time()))
         print(f"Training started: {start_time}")
@@ -119,33 +132,37 @@ class CNNClassifier(nn.Module):
 
             train_loss = 0
             val_losses = []
-            train_preds, val_preds = [], []
+            train_trues, train_preds = [], []
+            val_trues, val_preds = [], []
 
             self.train()
 
             for X, y in DataLoader(train_dataset, batch_size=batch_size, pin_memory=not X_train.is_cuda, generator=torch.Generator(
-                    device=device_context.device), sampler=sampler):
+                    device=device_context.device), shuffle=True):
                 X = X.to(device_context.device)
                 y = y.to(device_context.device)
                 optimizer.zero_grad()
                 pred = self(X).flatten()
+                criterion.weight = torch.where(y == 0, class_weights[0], class_weights[1])
                 loss = criterion(pred, y)
-                train_preds.extend((pred > 0.5).tolist())
                 loss.backward()
                 optimizer.step()
                 train_loss = loss.item()
+                train_trues.extend(y.tolist())
+                train_preds.extend((pred > 0.5).tolist())
 
             self.eval()
 
             with torch.no_grad():
-                for X, y in DataLoader(val_dataset, batch_size=4096, pin_memory=not X_train.is_cuda, generator=torch.Generator(
-                        device=device_context.device)):
+                for X, y in DataLoader(val_dataset, batch_size=4096, pin_memory=not X_train.is_cuda, generator=torch.Generator(device=device_context.device)):
                     X = X.to(device_context.device)
                     y = y.to(device_context.device)
                     pred = self(X).flatten()
+                    criterion.weight = torch.where(y == 0, class_weights[0], class_weights[1])
                     loss = criterion(pred, y)
-                    val_preds.extend((pred > 0.5).tolist())
                     val_losses.append(loss.item())
+                    val_trues.extend(y.tolist())
+                    val_preds.extend((pred > 0.5).tolist())
 
             val_loss = np.mean(val_losses)
 
@@ -157,29 +174,17 @@ class CNNClassifier(nn.Module):
                 f"""{epoch}/{n_epochs}, time: {end_time}, 
                 train_loss: {train_loss:.4f}, 
                 val_loss: {val_loss:.4f}, 
-                train_acc: {accuracy_score(y_train_np, train_preds):.4f}, 
-                val_acc: {accuracy_score(y_val_np, val_preds):.4f},
-                balanced_train_acc: {balanced_accuracy_score(y_train_np, train_preds):.4f},
-                balanced_val_acc: {balanced_accuracy_score(y_val_np, val_preds):.4f},
-                f1_train: {f1_score(y_train_np, train_preds):.4f},
-                f1_val: {f1_score(y_val_np, val_preds):.4f}
-                precision_train: {precision_score(y_train_np, train_preds):.4f},
-                precision_val: {precision_score(y_val_np, val_preds):.4f}
-                recall_train: {recall_score(y_train_np, train_preds):.4f},
-                recall_val: {recall_score(y_val_np, val_preds):.4f}
+                train_acc: {accuracy_score(train_trues, train_preds):.4f}, 
+                val_acc: {accuracy_score(val_trues, val_preds):.4f},
+                balanced_train_acc: {balanced_accuracy_score(train_trues, train_preds):.4f},
+                balanced_val_acc: {balanced_accuracy_score(val_trues, val_preds):.4f},
+                f1_train: {f1_score(train_trues, train_preds):.4f},
+                f1_val: {f1_score(val_trues, val_preds):.4f}
+                precision_train: {precision_score(train_trues, train_preds):.4f},
+                precision_val: {precision_score(val_trues, val_preds):.4f}
+                recall_train: {recall_score(train_trues, train_preds):.4f},
+                recall_val: {recall_score(val_trues, val_preds):.4f}
                 """)
-
-            if val_loss < best_loss:
-                early_stopping_counter = 0
-                best_loss = val_loss
-                best_model_wts = copy.deepcopy(self.state_dict())
-                self.save_checkpoint(dirpath, history)
-
-            else:
-                early_stopping_counter += 1
-                if early_stopping_counter == patience:
-                    print("Early stopping")
-                    break
 
         self.load_state_dict(best_model_wts)
         return history

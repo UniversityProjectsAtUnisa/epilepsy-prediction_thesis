@@ -23,6 +23,8 @@ class DenseClassifier(nn.Module):
 
     @classmethod
     def load(cls, filepath: pathlib.Path):
+        if not filepath.exists():
+            raise Exception("Model file not found")
         model = torch.load(filepath, map_location=device_context.device)
         if not isinstance(model, cls):
             raise Exception("Invalid model file")
@@ -30,5 +32,4 @@ class DenseClassifier(nn.Module):
 
     def save(self, filepath: pathlib.Path):
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        module_filepath = filepath
-        torch.save(self, module_filepath)
+        torch.save(self, filepath)

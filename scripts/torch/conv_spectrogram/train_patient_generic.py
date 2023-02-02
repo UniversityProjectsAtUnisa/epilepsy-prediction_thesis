@@ -11,12 +11,13 @@ import pathlib
 
 def train(patient_name, other_patients, dirpath):
     print(f"Training for patient {patient_name}")
-    patient_dirpath = dirpath.joinpath(patient_name)
+    patient_dirpath = dirpath/patient_name
+    patient_dirpath.mkdir(exist_ok=True, parents=True)
     if (patient_dirpath/"complete").exists():
         print(f"Patient {patient_name} already trained")
         return
 
-    cache_filepath = pathlib.Path(f"/tmp/{patient_name}_cache.h5")
+    cache_filepath = pathlib.Path(f"{patient_dirpath}/cache.h5")
 
     if not cache_filepath.exists():
         c = 0
@@ -33,10 +34,10 @@ def train(patient_name, other_patients, dirpath):
             print(f"Training for patient {patient_name} - fold {i}")
             fold_dirpath = patient_dirpath/f"fold_{i}"
 
+            X_train, y_train, X_val, y_val = convert_to_tensor(X_train, y_train, X_val, y_val)
             with device_context:
-                X_train, y_train, X_val, y_val = convert_to_tensor(X_train, y_train, X_val, y_val)
                 model = CNNClassifier()
-                history = model.train_model(X_train, y_train, X_val, y_val, n_epochs=config.N_EPOCHS, batch_size=256,
+                history = model.train_model(X_train, y_train, X_val, y_val, n_epochs=config.N_EPOCHS, batch_size=config.BATCH_SIZE,
                                             dirpath=fold_dirpath, learning_rate=config.LEARNING_RATE, patience=config.PATIENCE)
 
             model.save(fold_dirpath)

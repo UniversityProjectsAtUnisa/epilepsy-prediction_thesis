@@ -2,8 +2,7 @@ import numpy as np
 import torch
 import h5py
 from sklearn.model_selection import train_test_split, KFold
-from . import torch_config as config
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import pandas as pd
 import pathlib
 
@@ -35,12 +34,15 @@ def load_patient_names(dataset_path) -> List[str]:
         return list(f.keys())
 
 
-def segment_data(X: np.ndarray, n_subwindows: int, overlap: int) -> np.ndarray:
+def segment_data(X: np.ndarray, n_subwindows: int, overlap: int, preprocess: bool = False) -> np.ndarray:
     stride = n_subwindows - overlap
     skip = (len(X) - overlap) % stride
 
     segments = np.array(tuple(zip(*(X[skip+i::stride] for i in range(n_subwindows)))))
-    return np.moveaxis(segments, 1, -1)
+    segments = np.moveaxis(segments, 1, -1)
+    if not preprocess:
+        return segments
+    return segments.reshape(segments.shape[0], -1)
 
 
 def load_x_data(dataset_path, key, preprocess):
@@ -104,7 +106,7 @@ def load_data(
     if load_train:
         print("Loading training data... ", end=" ")
         X_train = load_x_data(dataset_path, f"{patient_name}/train/X", preprocess)
-        X_train = tuple(segment_data(x, n_subwindows, overlap) for x in X_train)
+        X_train = tuple(segment_data(x, n_subwindows, overlap, preprocess) for x in X_train)
         print("DONE")
         print(f"Training recordings: {len(X_train)}")
         print(f"Total training samples: {sum(x.shape[0] for x in X_train)}")
@@ -112,14 +114,14 @@ def load_data(
     if load_test:
         print("Loading test data... ", end=" ")
         X_test = load_x_data(dataset_path, f"{patient_name}/test/X", preprocess)
-        X_test = tuple(segment_data(x, n_subwindows, overlap) for x in X_test)
+        X_test = tuple(segment_data(x, n_subwindows, overlap, preprocess) for x in X_test)
         print(f'DONE')
         print(f"Testing recordings: {len(X_test)}")
         print(f"Total testing samples: {sum(x.shape[0] for x in X_test)}")
     return X_train, X_test  # type: ignore
 
 
-def nested_kfolds(X: Tuple[np.ndarray], shuffle=False, random_state=None):
+def nested_kfolds(X: Tuple[Union[np.ndarray, torch.Tensor]], shuffle=False, random_state=None):
     n_elements = len(X)
     external_nfolds = min(n_elements, 5)
     e_kf = KFold(n_splits=external_nfolds, shuffle=shuffle, random_state=random_state)
@@ -149,6 +151,14 @@ def patient_generic_kfolds(Xs: List[np.ndarray], shuffle=False, random_state=Non
         X_train = [np.concatenate(Xs[k]) for k in train_idx]
         X_val = [np.concatenate(Xs[k]) for k in val_idx]
         yield i, (np.concatenate(X_train), np.concatenate(X_val))
+
+
+def patient_specific_kfolds_conv(Xs: Tuple[np.ndarray], shuffle=False, random_state=None):
+    kf = KFold(n_splits=min(len(Xs), 5), shuffle=shuffle, random_state=random_state)
+    for i, (train_idx, val_idx) in enumerate(kf.split(Xs)):
+        X_train = [Xs[k] for k in train_idx]
+        X_test = [Xs[k] for k in val_idx]
+        yield i, (np.concatenate(X_train), np.concatenate(X_test))
 
 
 def patient_generic_kfolds_h5py(Xs, ys, shuffle=False, random_state=None):

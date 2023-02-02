@@ -11,7 +11,6 @@ def build_padded_conv(in_ch, out_ch, kernel):
 
 
 class FeatureExtractor(nn.Module):
-    module_filename = "feature_extractor.pth"
     n_channels = 21
 
     def __init__(self):
@@ -75,14 +74,14 @@ class FeatureExtractor(nn.Module):
         return x
 
     @classmethod
-    def load(cls, dirpath: pathlib.Path):
-        module_filepath = dirpath/cls.module_filename
-        model = torch.load(module_filepath, map_location=device_context.device)
+    def load(cls, filepath: pathlib.Path):
+        if not filepath.exists():
+            raise Exception("Model file not found")
+        model = torch.load(filepath, map_location=device_context.device)
         if not isinstance(model, cls):
             raise Exception("Invalid model file")
         return model
 
-    def save(self, dirpath: pathlib.Path):
-        dirpath.mkdir(parents=True, exist_ok=True)
-        module_filepath = dirpath/self.module_filename
-        torch.save(self, module_filepath)
+    def save(self, filepath: pathlib.Path):
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(self, filepath)

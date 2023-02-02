@@ -23,7 +23,7 @@ def plot_train_val_losses(train_losses, val_losses):
 def plot_cumulative_positive_preds(fold_preds, window_size_seconds, window_overlap_seconds):
     avg_preds = []
     for i in range(len(fold_preds[0])):
-        avg = np.array([p[i].numpy() for p in fold_preds]).mean(axis=0)
+        avg = np.array([p[i].numpy() if not isinstance(p[1], np.ndarray) else p[i] for p in fold_preds]).mean(axis=0)
         avg_preds.append(avg)
     # equalslength_preds = [np.pad(pred, (max_length - len(pred), 0), "constant") for pred in avg_preds]
     cum_preds = [np.insert(fp.cumsum(), 0, 0) for fp in avg_preds]
@@ -40,7 +40,7 @@ def plot_cumulative_positive_preds(fold_preds, window_size_seconds, window_overl
 
 
 def plot_cumulative_negative_preds(fold_preds, window_size_seconds, window_overlap_seconds):
-    preds = [p.numpy() for p in fold_preds]
+    preds = [p.numpy() if not isinstance(p, np.ndarray) else p for p in fold_preds]
     cum_preds = [np.insert(pred.cumsum(), 0, 0) for pred in preds]
     scaled_preds = [pred / (len(pred) - 1) for pred in cum_preds]
 
